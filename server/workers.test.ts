@@ -7,7 +7,7 @@ import { HttpError } from "./http-error.ts";
 import { UsageTracker } from "./usage.ts";
 import { WorkerManager, describeTool, loadWorkerSettings, prettyModel } from "./workers.ts";
 
-const tmp = mkdtempSync(path.join(os.tmpdir(), "claudia-test-"));
+const tmp = mkdtempSync(path.join(os.tmpdir(), "ella-test-"));
 const root = path.join(tmp, "root");
 const outside = path.join(tmp, "outside");
 mkdirSync(path.join(root, "proj"), { recursive: true });

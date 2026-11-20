@@ -77,10 +77,151 @@ export interface AppConfig {
   maxWorkers: number;
 }
 
+/* ---------- Control center ---------- */
+
+export interface ProjectItem {
+  key: string;
+  path: string;
+  name: string;
+  exists: boolean;
+  sessions: number;
+  lastActive: number | null;
+}
+
+export interface ConfigFile {
+  path: string;
+  label: string;
+  exists: boolean;
+}
+
+export interface NamedItem {
+  name: string;
+  detail: string;
+  source: string;
+  path?: string;
+}
+
+export interface McpServerInfo {
+  name: string;
+  scope: "user" | "local" | "project" | "plugin";
+  transport: string;
+  target: string;
+  enabled: boolean;
+  toggleable: boolean;
+}
+
+export interface PermissionSet {
+  source: string;
+  allow: string[];
+  deny: string[];
+  ask: string[];
+  defaultMode: string | null;
+}
+
+export interface ClaudeConfigView {
+  scope: "global" | "project";
+  files: ConfigFile[];
+  skills: NamedItem[];
+  agents: NamedItem[];
+  commands: NamedItem[];
+  rules: NamedItem[];
+  hooks: NamedItem[];
+  mcp: McpServerInfo[];
+  permissions: PermissionSet[];
+}
+
+export interface PluginInfo {
+  id: string;
+  version: string;
+  scope: string;
+  enabled: boolean;
+}
+
+export interface DockerContainer {
+  id: string;
+  name: string;
+  image: string;
+  state: string;
+  status: string;
+  sizeBytes: number;
+  composeProject: string | null;
+  workingDir: string | null;
+}
+
+export interface DockerVolume {
+  name: string;
+  sizeBytes: number;
+  composeProject: string | null;
+}
+
+export interface DockerProjectUsage {
+  projectPath: string | null;
+  label: string;
+  containers: DockerContainer[];
+  volumes: DockerVolume[];
+  sizeBytes: number;
+}
+
+export interface DockerReport {
+  available: boolean;
+  error: string | null;
+  groups: DockerProjectUsage[];
+  imagesBytes: number;
+  buildCacheBytes: number;
+  volumesPending: boolean;
+}
+
+export interface ClaudeSessionProc {
+  pid: number;
+  cwd: string;
+  kind: string;
+  sessionId: string;
+  name: string;
+  status: string;
+  startedAt: number;
+}
+
+export interface ExternalProc {
+  pid: number;
+  name: string;
+  commandLine: string;
+  playwright: boolean;
+}
+
+export type TaskStatus = "running" | "exited" | "failed" | "stopped";
+
+export interface TaskView {
+  id: string;
+  projectPath: string;
+  label: string;
+  command: string;
+  status: TaskStatus;
+  exitCode: number | null;
+  startedAt: number;
+  endedAt: number | null;
+  lines: string[];
+}
+
+export interface TaskPreset {
+  id: string;
+  label: string;
+  group: "script" | "playwright";
+}
+
+export interface CommandResult {
+  command: string;
+  code: number | null;
+  output: string;
+  timedOut: boolean;
+}
+
 export type ServerEvent =
-  | { type: "snapshot"; workers: WorkerView[]; usage: Usage; vpn: boolean; config: AppConfig }
+  | { type: "snapshot"; workers: WorkerView[]; usage: Usage; vpn: boolean; config: AppConfig; tasks: TaskView[] }
   | { type: "worker"; worker: WorkerMeta }
   | { type: "message"; workerId: string; message: ChatMessage }
   | { type: "worker-removed"; id: string }
   | { type: "usage"; usage: Usage }
-  | { type: "vpn"; vpn: boolean };
+  | { type: "vpn"; vpn: boolean }
+  | { type: "task"; task: Omit<TaskView, "lines"> }
+  | { type: "task-log"; id: string; lines: string[] }
+  | { type: "task-removed"; id: string };

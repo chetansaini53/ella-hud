@@ -1,5 +1,8 @@
-import { ActionIcon, Menu, Tooltip } from "@mantine/core";
+import { ActionIcon, Indicator, Menu, Tooltip } from "@mantine/core";
 import {
+  IconAdjustmentsHorizontal,
+  IconCalendarEvent,
+  IconChecklist,
   IconFocus2,
   IconHeadphones,
   IconLanguage,
@@ -34,11 +37,16 @@ interface Props {
   speakerOn: boolean;
   announceAll: boolean;
   rightOpen: boolean;
+  controlOpen: boolean;
+  openTodos: number;
   lang: string;
   onToggleMic: () => void;
   onToggleSpeaker: () => void;
   onToggleAnnounceAll: () => void;
   onToggleRight: () => void;
+  onToggleControl: () => void;
+  onMeetings: () => void;
+  onTodos: () => void;
   onNewWorker: () => void;
   onNeedsYou: () => void;
   onLang: (lang: string) => void;
@@ -73,7 +81,7 @@ export function Header(p: Props) {
     <header className="header">
       <div className="brand">
         <IconFocus2 size={20} stroke={1.6} aria-hidden />
-        Claudia
+        <span>Ella</span>
       </div>
 
       <Tooltip label={p.vpn ? "A VPN / tunnel adapter is up" : "No VPN adapter detected"}>
@@ -99,11 +107,22 @@ export function Header(p: Props) {
       <IconButton label={p.micOn ? "Mute microphone" : "Unmute microphone"} className={p.micOn ? "on" : "alert"} onClick={p.onToggleMic}>
         {p.micOn ? <IconMicrophone size={16} /> : <IconMicrophoneOff size={16} />}
       </IconButton>
-      <IconButton label={p.speakerOn ? "Mute Claudia's voice" : "Let Claudia speak"} className={p.speakerOn ? "on" : ""} onClick={p.onToggleSpeaker}>
+      <IconButton label={p.speakerOn ? "Mute Ella's voice" : "Let Ella speak"} className={p.speakerOn ? "on" : ""} onClick={p.onToggleSpeaker}>
         {p.speakerOn ? <IconVolume size={16} /> : <IconVolumeOff size={16} />}
       </IconButton>
       <IconButton label={p.announceAll ? "Announcing every worker that finishes" : "Announcing only the worker you talk to"} className={p.announceAll ? "on" : ""} onClick={p.onToggleAnnounceAll}>
         <IconHeadphones size={16} />
+      </IconButton>
+      <IconButton label="Meetings" onClick={p.onMeetings}>
+        <IconCalendarEvent size={16} />
+      </IconButton>
+      <IconButton label={`To-do · ${p.openTodos} open`} onClick={p.onTodos}>
+        <Indicator disabled={p.openTodos === 0} label={p.openTodos} size={14} color="yellow" offset={-2}>
+          <IconChecklist size={16} />
+        </Indicator>
+      </IconButton>
+      <IconButton label={p.controlOpen ? "Back to the HUD" : "Control center: projects, config, Docker, tasks"} className={p.controlOpen ? "on" : ""} onClick={p.onToggleControl}>
+        <IconAdjustmentsHorizontal size={16} />
       </IconButton>
       <IconButton label="New worker" onClick={p.onNewWorker}>
         <IconPlus size={16} />

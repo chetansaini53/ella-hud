@@ -3,11 +3,13 @@ import { stat } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import { pipeline } from "node:stream";
-import type { AppConfig, ChatMessage, ServerEvent, WorkerMeta } from "../shared/types.ts";
+import type { AppConfig, ChatMessage, ServerEvent, TaskView, WorkerMeta } from "../shared/types.ts";
+import { controlRoutes } from "./control-routes.ts";
 import { guardConfig, guardRequest, resolveStatic } from "./guard.ts";
 import { listEvolution, listHistory } from "./history.ts";
 import { HttpError } from "./http-error.ts";
 import { log } from "./log.ts";
+import { TaskManager } from "./tasks.ts";
 import { addTodo, listTodos, setTodoDone } from "./todos.ts";
 import { UsageTracker } from "./usage.ts";
 import { vpnActive } from "./vpn.ts";
@@ -29,6 +31,7 @@ const config: AppConfig = {
   maxWorkers: settings.maxWorkers,
 };
 const workers = new WorkerManager(settings);
+const tasks = new TaskManager();
 const usage = new UsageTracker();
 const clients = new Set<ServerResponse>();
 let vpn = vpnActive();
@@ -41,6 +44,9 @@ function broadcast(event: ServerEvent): void {
 workers.on("worker", (worker: WorkerMeta) => broadcast({ type: "worker", worker }));
 workers.on("message", (workerId: string, message: ChatMessage) => broadcast({ type: "message", workerId, message }));
 workers.on("removed", (id: string) => broadcast({ type: "worker-removed", id }));
+tasks.on("task", (task: Omit<TaskView, "lines">) => broadcast({ type: "task", task }));
+tasks.on("log", (id: string, lines: string[]) => broadcast({ type: "task-log", id, lines }));
+tasks.on("removed", (id: string) => broadcast({ type: "task-removed", id }));
 workers.on("rate-limit", (ev: Record<string, unknown>) => {
   if (usage.apply(ev)) broadcast({ type: "usage", usage: usage.get() });
 });
@@ -62,11 +68,12 @@ const routes: [string, RegExp, Handler][] = [
   ["POST", new RegExp(`^/api/workers/${ID}/messages$`), async (req, _res, [id]) => workers.send(id ?? "", (await body(req)).text)],
   ["POST", new RegExp(`^/api/workers/${ID}/stop$`), (_req, _res, [id]) => workers.stop(id ?? "")],
   ["DELETE", new RegExp(`^/api/workers/${ID}$`), (_req, _res, [id]) => workers.remove(id ?? "")],
+  ...controlRoutes(settings.claudeBin, tasks, body).map(([m, re, fn]): [string, RegExp, Handler] => [m, re, (req, _res, params) => fn(req, params)]),
 ];
 
 function openStream(req: IncomingMessage, res: ServerResponse): typeof STREAMING {
   res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-store", Connection: "keep-alive" });
-  const snapshot: ServerEvent = { type: "snapshot", workers: workers.list(), usage: usage.get(), vpn, config };
+  const snapshot: ServerEvent = { type: "snapshot", workers: workers.list(), usage: usage.get(), vpn, config, tasks: tasks.list() };
   res.write(`data: ${JSON.stringify(snapshot)}\n\n`);
   clients.add(res);
   req.on("close", () => clients.delete(res));
@@ -164,10 +171,11 @@ server.on("error", (err: NodeJS.ErrnoException) => {
   log("error", err.code === "EADDRINUSE" ? `Port ${PORT} is busy — set PORT in .env` : "server error", { err: err.message });
   process.exit(1);
 });
-server.listen(PORT, HOST, () => log("info", "claudia-hud listening", { url: `http://${HOST}:${PORT}`, roots: settings.workspaceRoots }));
+server.listen(PORT, HOST, () => log("info", "ella-hud listening", { url: `http://${HOST}:${PORT}`, roots: settings.workspaceRoots }));
 
 function shutdown(): void {
   workers.shutdown();
+  tasks.shutdown();
   server.close();
   process.exit(0);
 }

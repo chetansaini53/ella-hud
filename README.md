@@ -1,12 +1,12 @@
-# Claudia HUD
+# Ella HUD
 
 A sci‑fi command center for **Claude Code**. It runs several Claude Code sessions ("workers") side by side, streams what each one is doing live, and lets you talk to them out loud.
 
 > Unofficial community project. Not affiliated with or endorsed by Anthropic.
 
 - **Cooking now**: one live card per worker, showing the tool it is running ("Bash: typecheck web"), its model and effort, and any subagents it spawned.
-- **Voice**: speak to the selected worker. When a worker finishes its turn, Claudia reads the reply aloud, and the orb reacts to your mic and her voice.
-- **Cooked**: your recent Claude Code sessions are **auto‑detected**, with no setup. Click one to continue it as a worker. The session is forked, so the original is never touched.
+- **Voice**: speak to the selected worker. When a worker finishes its turn, Ella reads the reply aloud, and the orb reacts to your mic and her voice.
+- **Cooked**: your recent Claude Code sessions are **auto‑detected**, with no setup, and grouped by project. Click one to continue it as a worker. The session is forked, so the original is never touched.
 - **Evolution**: the memory notes Claude Code has written recently.
 - **SESSION / WEEK meters**: your plan usage and reset times, taken from the CLI's own rate‑limit events.
 - **NEEDS YOU**: flags workers that hit a permission wall or an error.
@@ -14,7 +14,7 @@ A sci‑fi command center for **Claude Code**. It runs several Claude Code sessi
 
 ## Which Claude plan do I need?
 
-Claudia drives the **Claude Code CLI**, so you need a plan that includes Claude Code:
+Ella drives the **Claude Code CLI**, so you need a plan that includes Claude Code:
 
 | Plan | Works? |
 |---|---|
@@ -61,8 +61,8 @@ You can also install it with `npm install -g @anthropic-ai/claude-code`.
 
 **Windows (CMD)**
 ```bat
-git clone https://github.com/chetansaini53/claudia-hud.git
-cd claudia-hud
+git clone https://github.com/chetansaini53/ella-hud.git
+cd ella-hud
 corepack enable
 pnpm install
 copy .env.example .env
@@ -71,8 +71,8 @@ pnpm start
 
 **macOS / Linux**
 ```bash
-git clone https://github.com/chetansaini53/claudia-hud.git
-cd claudia-hud
+git clone https://github.com/chetansaini53/ella-hud.git
+cd ella-hud
 corepack enable
 pnpm install
 cp .env.example .env
@@ -113,16 +113,41 @@ Restart `pnpm start` after you change `.env`.
 | Control | What it does |
 |---|---|
 | **+** (header) | Start a new worker: task, folder, model (Opus/Sonnet/Haiku), effort |
+| 📅 / ✅ (header) | Open **Meetings** and **To-do** in a modal. The to-do icon shows how many are still open |
+| Quick search (left) | Type a few words. The dropdown ranks the best matches across live workers and recent sessions; pick one to open it |
+| Left sidebar | Sessions are grouped by project, with the newest project first. Click a group name to collapse or expand it |
 | Card in *Cooking now* | Select that worker. The chat and the voice target follow it |
 | Item in *Cooked* | Continue that old session as a new forked worker |
 | 🎙 mic | Start or stop listening. Speech goes to the selected worker |
-| 🔊 speaker | Turn Claudia's spoken replies on or off |
+| 🔊 speaker | Turn Ella's spoken replies on or off |
 | 🎧 headphones | Announce every worker that finishes, not only the one you're talking to |
 | ☼ | Voice language (English India/US/UK, Hindi) |
 | **Talk / Collect asks** | *Talk* sends each spoken sentence right away. *Collect asks* gathers them in the box until you press Send |
 | **Stop** | Kill the selected worker's current turn. You can message it again later and it resumes |
 
 A worker's process exits after every turn and is resumed (`--resume`) on your next message, so idle workers cost no RAM.
+
+## Control Center
+
+The sliders icon in the header switches the HUD to the **Control Center**. On the left is **Global profile**, followed by every project Claude Code knows: the folders in `~/.claude.json` plus any folder that has session transcripts. Each one has these tabs:
+
+| Tab | Global profile | A project |
+|---|---|---|
+| **Sessions** | Every Claude Code session running right now (`claude agents --json`) | Its running sessions, plus all of its session files. Click **Open** to continue one as a worker |
+| **Config** | `~/.claude/CLAUDE.md`, rules, skills, agents, slash commands, permissions, hooks | That project's `CLAUDE.md`, `.claude/` settings, skills, rules, agents, hooks, permissions |
+| **MCP & Plugins** | User MCP servers, a **health check** (`claude mcp list`), and installed plugins with enable/disable | User, local and project servers. Project `.mcp.json` servers can be approved or rejected |
+| **Docker** | Disk used by images, build cache, and every compose project, grouped by Claude project | Only this project's containers and volumes, with start/stop |
+| **Tasks** | Tasks started from Ella, plus Playwright and browser-automation processes | Its `package.json` scripts and Playwright (run tests, UI mode, report) with one‑click start/stop and live logs. Also lists other processes using the folder |
+| **Commands** | Read‑only `claude` commands: `--version`, `doctor`, `auth status`, `mcp list`, `plugin list`, `agents` | The same commands, run inside the project folder |
+
+**Ella does not change your Claude Code setup on its own.** Everything is read‑only until you click one of these four actions, and each one asks you to confirm first:
+
+- Approving or rejecting a project `.mcp.json` server writes `.claude/settings.local.json` (a backup is kept as `settings.local.json.ella-bak`). This is the same file Claude Code's own approval prompt writes.
+- Enabling or disabling a plugin runs the official `claude plugin enable|disable` command.
+- Starting or stopping a Docker container.
+- Killing a listed process.
+
+Secrets are masked in every view: MCP `env` and `headers`, token‑looking arguments, and keys whose names contain `key`, `token` or `secret`.
 
 ## Configuration (`.env`)
 
@@ -142,7 +167,7 @@ All values are optional.
 
 ## Security
 
-Claudia can start Claude Code with your account, so the server is locked down:
+Ella can start Claude Code with your account, so the server is locked down:
 
 - It listens on **127.0.0.1 only**, so nothing on your network can reach it.
 - **Host allowlist**: blocks DNS‑rebinding attacks from websites.

@@ -1,5 +1,5 @@
 {
-  "name": "claudia-hud",
+  "name": "ella-hud",
   "version": "0.1.0",
   "description": "Localhost HUD that runs several headless Claude Code sessions at once, with voice in and out.",
   "license": "MIT",

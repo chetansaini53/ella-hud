@@ -5,6 +5,7 @@ export type OrbPhase = "idle" | "listening" | "thinking" | "speaking";
 const RINGS = 8;
 const GOLD = [242, 208, 107];
 const CORAL = [226, 122, 106];
+const VIOLET = [139, 125, 255];
 const BASE_ENERGY: Record<OrbPhase, number> = { idle: 0.25, thinking: 0.55, listening: 0.35, speaking: 0.75 };
 
 interface Props {
@@ -65,7 +66,9 @@ export function Orb({ phase, levelRef }: Props) {
       const time = t * 0.001;
       for (let i = 0; i < RINGS; i++) {
         const mix = i / (RINGS - 1);
-        const [r, gg, b] = GOLD.map((c, k) => Math.round(c + ((CORAL[k] ?? c) - c) * mix));
+        // gold → coral for the inner half, coral → violet for the outer rings
+        const [from, to, f] = mix < 0.5 ? [GOLD, CORAL, mix * 2] : [CORAL, VIOLET, (mix - 0.5) * 2];
+        const [r, gg, b] = from.map((c, k) => Math.round(c + ((to[k] ?? c) - c) * f));
         const lobes = 5 + (i % 2);
         const speed = 0.25 + i * 0.07;
         const offset = i * 1.7;
@@ -106,5 +109,5 @@ export function Orb({ phase, levelRef }: Props) {
     };
   }, [levelRef]);
 
-  return <canvas ref={canvasRef} role="img" aria-label={`Claudia is ${phase}`} />;
+  return <canvas ref={canvasRef} role="img" aria-label={`Ella is ${phase}`} />;
 }
