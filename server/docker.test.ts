@@ -18,5 +18,7 @@ describe("docker actions validate before touching Docker", () => {
   it("only runs the known cleanups", async () => {
     await assert.rejects(prune("system --all --volumes"), is400);
     await assert.rejects(prune(undefined), is400);
+    await assert.rejects(prune("constructor"), is400);
+    await assert.rejects(prune("__proto__"), is400);
   });
 });

@@ -171,19 +171,21 @@ function GroupSection({ g, pending, busy, onAct, onRemoveVolume }: { g: DockerPr
   );
 }
 
-function CleanupRow({ title, detail, size, action, danger, busy, onRun }: { title: string; detail: string; size: string; action: string; danger?: boolean; busy: boolean; onRun: () => void }) {
+function CleanupRow({ title, detail, size, action, danger, busy, locked, onRun }: { title: string; detail: string; size: string; action: string; danger?: boolean; busy: boolean; locked: boolean; onRun: () => void }) {
   return (
     <tr>
       <td><b>{title}</b><div className="dim">{detail}</div></td>
       <td className="nowrap">{size}</td>
       <td className="nowrap">
-        <Button size="compact-xs" variant="light" color={danger ? "red" : "hud"} loading={busy} leftSection={<IconTrash size={12} />} onClick={onRun}>{action}</Button>
+        <Button size="compact-xs" variant="light" color={danger ? "red" : "hud"} loading={busy} disabled={locked && !busy} leftSection={<IconTrash size={12} />} onClick={onRun}>{action}</Button>
       </td>
     </tr>
   );
 }
 
 const groupKey = (g: DockerProjectUsage) => g.projectPath ?? `compose:${g.label}`;
+/** `docker rm` without -f only takes containers in these states. */
+const REMOVABLE = new Set(["exited", "created"]);
 
 /** Narrows a group to what matches the search (container, image, volume or the group's own name). */
 function filterGroup(g: DockerProjectUsage, q: string): DockerProjectUsage | null {
@@ -211,7 +213,10 @@ export function DockerPanel({ project, onError }: { project: ProjectItem | null;
     return () => clearTimeout(t);
   }, [report.data, report.reload]);
 
+  useEffect(() => setResult(null), [view, pick]);
+
   const call = async (key: string, fn: () => Promise<unknown>) => {
+    setResult(null);
     setBusy(key);
     try {
       await fn();
@@ -227,30 +232,32 @@ export function DockerPanel({ project, onError }: { project: ProjectItem | null;
     const msg = action === "remove" ? `Delete container ${name}?\n\nThis cannot be undone. Its volumes are kept.` : `${action === "stop" ? "Stop" : "Start"} container ${name}?`;
     const label = action === "remove" ? "Delete" : action === "stop" ? "Stop" : "Start";
     if (!(await ask(msg, label))) return;
-    await call(id, () => api("POST", "/api/docker/action", { id, action }));
+    await call(id, () => api("POST", "/api/docker/action", { id, action }, 70_000));
   };
 
   const removeVolume = async (name: string) => {
     if (!(await ask(`Delete volume ${name}?\n\nEverything stored in it (databases, uploads…) is deleted. This cannot be undone.`, "Delete volume"))) return;
-    await call(`vol:${name}`, () => api("POST", "/api/docker/volume-remove", { name }));
+    await call(`vol:${name}`, () => api("POST", "/api/docker/volume-remove", { name }, 70_000));
   };
 
   const pruneAll = async (target: DockerPrune, what: string, warning: string) => {
     if (!(await ask(`${what}?\n\n${warning}\nThis cannot be undone.`, "Clean up"))) return;
     await call(`prune:${target}`, async () => {
-      const r = await api<{ output: string }>("POST", "/api/docker/prune", { target });
+      const r = await api<{ output: string }>("POST", "/api/docker/prune", { target }, 610_000);
       setResult(`${what}: ${r.output}`);
     });
   };
 
   const bulk = async (g: DockerProjectUsage, action: "start" | "stop" | "remove") => {
-    const targets = g.containers.filter((c) => (action === "start" ? c.state !== "running" : action === "stop" ? c.state === "running" : c.state !== "running"));
+    const targets = g.containers.filter((c) => (action === "start" ? c.state !== "running" : action === "stop" ? c.state === "running" : REMOVABLE.has(c.state)));
     if (!targets.length) return;
     const verb = action === "remove" ? "Delete" : action === "stop" ? "Stop" : "Start";
     const extra = action === "remove" ? "\n\nThis cannot be undone. Volumes are kept." : "";
     if (!(await ask(`${verb} ${targets.length} container(s) of ${g.label}?\n\n${targets.map((c) => c.name).join("\n")}${extra}`, `${verb} all`))) return;
     await call("bulk", async () => {
-      for (const c of targets) await api("POST", "/api/docker/action", { id: c.id, action });
+      const failed: string[] = [];
+      for (const c of targets) await api("POST", "/api/docker/action", { id: c.id, action }, 70_000).catch((e: Error) => failed.push(`${c.name} (${e.message})`));
+      setResult(`${verb}: ${targets.length - failed.length} done${failed.length ? `; failed: ${failed.join(", ")}` : ""}`);
     });
   };
 
@@ -258,9 +265,13 @@ export function DockerPanel({ project, onError }: { project: ProjectItem | null;
     if (!g.volumes.length) return;
     if (!(await ask(`Delete ${g.volumes.length} volume(s) of ${g.label}?\n\n${g.volumes.map((v) => v.name).join("\n")}\n\nAll data in them is deleted. Volumes a container still uses are skipped. This cannot be undone.`, "Delete volumes"))) return;
     await call("bulk", async () => {
-      const skipped: string[] = [];
-      for (const v of g.volumes) await api("POST", "/api/docker/volume-remove", { name: v.name }).catch(() => skipped.push(v.name));
-      setResult(skipped.length ? `Deleted ${g.volumes.length - skipped.length}; in use, kept: ${skipped.join(", ")}` : `Deleted ${g.volumes.length} volume(s)`);
+      const kept: string[] = [];
+      const failed: string[] = [];
+      for (const v of g.volumes) {
+        await api("POST", "/api/docker/volume-remove", { name: v.name }, 70_000).catch((e: Error) => (/in use/i.test(e.message) ? kept : failed).push(/in use/i.test(e.message) ? v.name : `${v.name} (${e.message})`));
+      }
+      const deleted = g.volumes.length - kept.length - failed.length;
+      setResult(`Deleted ${deleted} volume(s)${kept.length ? `; kept (in use): ${kept.join(", ")}` : ""}${failed.length ? `; failed: ${failed.join(", ")}` : ""}`);
     });
   };
 
@@ -270,7 +281,8 @@ export function DockerPanel({ project, onError }: { project: ProjectItem | null;
         if (!r.available) return <div className="ctl-state error">Docker is not reachable: {r.error}</div>;
         const selected = r.groups.find((g) => groupKey(g) === pick) ?? null;
         const running = selected?.containers.filter((c) => c.state === "running").length ?? 0;
-        const stopped = selected ? selected.containers.length - running : 0;
+        const stopped = selected?.containers.filter((c) => REMOVABLE.has(c.state)).length ?? 0;
+        const locked = busy !== null;
         const q = query.trim().toLowerCase();
         const shown = r.groups.map((g) => filterGroup(g, q)).filter((g): g is DockerProjectUsage => g !== null);
         const onAct: Act = (id, n, a) => void act(id, n, a);
@@ -304,11 +316,11 @@ export function DockerPanel({ project, onError }: { project: ProjectItem | null;
                 <Section title="Free up disk space">
                   <table className="ctl-table">
                     <tbody>
-                      <CleanupRow title={`Dangling images (${r.danglingImages})`} detail="Untagged leftovers from old builds" size="" action="Remove" busy={busy === "prune:dangling-images"} onRun={() => void pruneAll("dangling-images", "Remove dangling images", "Untagged images no container uses are deleted.")} />
-                      <CleanupRow title="Build cache" detail="Cached layers from docker build / compose build" size={`${fmtBytes(r.reclaimable.buildCache)} reclaimable`} action="Clear" busy={busy === "prune:build-cache"} onRun={() => void pruneAll("build-cache", "Clear build cache", "Next builds will be slower the first time.")} />
-                      <CleanupRow title="Stopped containers" detail="Every container that is not running" size={`${fmtBytes(r.reclaimable.containers)} reclaimable`} action="Remove" danger busy={busy === "prune:stopped-containers"} onRun={() => void pruneAll("stopped-containers", "Remove all stopped containers", "Every stopped container on this machine is deleted (their volumes are kept).")} />
-                      <CleanupRow title="Unused anonymous volumes" detail="Unnamed volumes no container uses" size={`up to ${fmtBytes(r.reclaimable.volumes)} unused`} action="Remove" danger busy={busy === "prune:anonymous-volumes"} onRun={() => void pruneAll("anonymous-volumes", "Remove unused anonymous volumes", "Data in unnamed volumes that no container uses is deleted. Named volumes are kept.")} />
-                      <CleanupRow title="All unused images" detail="Images no container uses; they download again when needed" size={`${fmtBytes(r.reclaimable.images)} reclaimable`} action="Remove" danger busy={busy === "prune:unused-images"} onRun={() => void pruneAll("unused-images", "Remove all unused images", "Every image without a container is deleted and must be pulled or rebuilt again.")} />
+                      <CleanupRow title="Dangling images" detail={`${r.danglingImages} untagged leftovers from old builds found; any still used by a container are kept`} size="" action="Remove" locked={locked} busy={busy === "prune:dangling-images"} onRun={() => void pruneAll("dangling-images", "Remove dangling images", "Untagged images no container uses are deleted.")} />
+                      <CleanupRow title="Build cache" detail="Cached layers from docker build / compose build" size={`${fmtBytes(r.reclaimable.buildCache)} reclaimable`} action="Clear" locked={locked} busy={busy === "prune:build-cache"} onRun={() => void pruneAll("build-cache", "Clear build cache", "Next builds will be slower the first time.")} />
+                      <CleanupRow title="Stopped containers" detail="Every container that is not running" size={`${fmtBytes(r.reclaimable.containers)} reclaimable`} action="Remove" danger locked={locked} busy={busy === "prune:stopped-containers"} onRun={() => void pruneAll("stopped-containers", "Remove all stopped containers", "Every stopped container on this machine is deleted (their volumes are kept).")} />
+                      <CleanupRow title="Unused anonymous volumes" detail="Unnamed volumes no container uses" size={`up to ${fmtBytes(r.reclaimable.volumes)} unused`} action="Remove" danger locked={locked} busy={busy === "prune:anonymous-volumes"} onRun={() => void pruneAll("anonymous-volumes", "Remove unused anonymous volumes", "Data in unnamed volumes that no container uses is deleted. Named volumes are kept.")} />
+                      <CleanupRow title="All unused images" detail="Images no container uses; they download again when needed" size={`${fmtBytes(r.reclaimable.images)} reclaimable`} action="Remove" danger locked={locked} busy={busy === "prune:unused-images"} onRun={() => void pruneAll("unused-images", "Remove all unused images", "Every image without a container is deleted and must be pulled or rebuilt again.")} />
                     </tbody>
                   </table>
                 </Section>
@@ -331,8 +343,8 @@ export function DockerPanel({ project, onError }: { project: ProjectItem | null;
                 <Section title={`Free up disk space · ${selected.label}`}>
                   <table className="ctl-table">
                     <tbody>
-                      <CleanupRow title={`Stopped containers (${stopped})`} detail="This project's containers that are not running" size="" action="Remove" danger busy={busy === "bulk"} onRun={() => void bulk(selected, "remove")} />
-                      <CleanupRow title={`Project volumes (${selected.volumes.length})`} detail="Deletes their data; volumes still in use are skipped" size={r.volumesPending ? "measuring…" : fmtBytes(selected.volumes.reduce((n, v) => n + v.sizeBytes, 0))} action="Remove" danger busy={busy === "bulk"} onRun={() => void removeProjectVolumes(selected)} />
+                      <CleanupRow title={`Stopped containers (${stopped})`} detail="This project's exited or created containers" size="" action="Remove" danger locked={locked} busy={busy === "bulk"} onRun={() => void bulk(selected, "remove")} />
+                      <CleanupRow title={`Project volumes (${selected.volumes.length})`} detail="Deletes their data; volumes still in use are skipped" size={r.volumesPending ? "measuring…" : fmtBytes(selected.volumes.reduce((n, v) => n + v.sizeBytes, 0))} action="Remove" danger locked={locked} busy={busy === "bulk"} onRun={() => void removeProjectVolumes(selected)} />
                     </tbody>
                   </table>
                 </Section>

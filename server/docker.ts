@@ -145,6 +145,8 @@ export async function removeVolume(name: unknown): Promise<void> {
   volumeSizes?.sizes.delete(name);
 }
 
+export const PRUNE_TIMEOUT_MS = 600_000;
+
 const PRUNE: Record<DockerPrune, string[]> = {
   "dangling-images": ["image", "prune", "-f"],
   "unused-images": ["image", "prune", "-a", "-f"],
@@ -155,9 +157,10 @@ const PRUNE: Record<DockerPrune, string[]> = {
 
 /** Whole-Docker cleanup. Returns Docker's own summary line (e.g. "Total reclaimed space: 1.2GB"). */
 export async function prune(target: unknown): Promise<string> {
-  const args = typeof target === "string" ? PRUNE[target as DockerPrune] : undefined;
+  const args = typeof target === "string" && Object.hasOwn(PRUNE, target) ? PRUNE[target as DockerPrune] : undefined;
   if (!args) throw new HttpError(400, "Unknown cleanup");
-  const r = await run(DOCKER, args, { timeoutMs: 600_000 });
+  const r = await run(DOCKER, args, { timeoutMs: PRUNE_TIMEOUT_MS });
+  if (r.timedOut) throw new HttpError(504, "Cleanup is still running in Docker after 10 minutes — refresh later to see the result");
   if (r.code !== 0) throw new HttpError(502, (r.stderr || "docker prune failed").trim().slice(0, 300));
   volumeSizes = null;
   return /Total reclaimed space:.*$/m.exec(r.stdout)?.[0] ?? "Done";
