@@ -6,7 +6,8 @@ import type { EvolutionItem, HistoryItem } from "../shared/types.ts";
 import { log } from "./log.ts";
 
 /** Same lookup Claude Code uses: $CLAUDE_CONFIG_DIR, else ~/.claude. */
-const PROJECTS_DIR = path.join(process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude"), "projects");
+export const CLAUDE_DIR = process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude");
+export const PROJECTS_DIR = path.join(CLAUDE_DIR, "projects");
 const HISTORY_LIMIT = 80;
 const EVOLUTION_LIMIT = 60;
 const SCAN_CONCURRENCY = 4;
@@ -14,7 +15,7 @@ const NEWLINE = 0x0a;
 /** Prompts the harness injects as "user" turns — not real asks. */
 const SYSTEM_PREFIXES = ["<command-", "<local-command", "<system-reminder", "<task-notification", "<side-sessions-event", "<ci-monitor-event", "Caveat:"];
 
-interface FileRef {
+export interface FileRef {
   file: string;
   mtimeMs: number;
   size: number;
@@ -60,7 +61,7 @@ async function scanHistory(): Promise<HistoryItem[]> {
   return items.filter((x): x is HistoryItem => x !== null);
 }
 
-async function scanSession(ref: FileRef): Promise<HistoryItem | null> {
+export async function scanSession(ref: FileRef): Promise<HistoryItem | null> {
   let st = states.get(ref.file);
   if (!st || ref.size < st.offset) st = { offset: 0, customTitle: "", firstAsk: "", cwd: "", asks: 0 };
   if (ref.size > st.offset) st = await readFrom(ref.file, st);
@@ -172,14 +173,14 @@ function clean(text: string): string {
 }
 
 /** "D:\Projects\shop\dev" or "/home/me/shop/dev" → "shop" (generic leaf folders fall back to their parent). */
-function projectName(cwd: string): string {
+export function projectName(cwd: string): string {
   if (!cwd) return "";
   const base = path.win32.basename(cwd);
   return ["dev", "app", "src", "main", "web"].includes(base.toLowerCase()) ? path.win32.basename(path.win32.dirname(cwd)) : base;
 }
 
 /** Claude Code's encoded project folder ("D--Projects-shop", "-home-me-shop") → readable-ish name. */
-function prettyProjectDir(dir: string): string {
+export function prettyProjectDir(dir: string): string {
   return dir.replace(/^[A-Za-z]--/, "").replace(/^-?(Users|home)-[^-]+-?/, "").replace(/^Projects-/, "") || "home";
 }
 
@@ -191,7 +192,7 @@ function parse<T>(line: Buffer): T | null {
   }
 }
 
-async function readdirSafe(dir: string): Promise<string[]> {
+export async function readdirSafe(dir: string): Promise<string[]> {
   try {
     return await readdir(dir);
   } catch {

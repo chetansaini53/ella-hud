@@ -1,5 +1,6 @@
 import { ActionIcon, Menu, Tooltip } from "@mantine/core";
 import {
+  IconAdjustmentsHorizontal,
   IconFocus2,
   IconHeadphones,
   IconLanguage,
@@ -34,11 +35,13 @@ interface Props {
   speakerOn: boolean;
   announceAll: boolean;
   rightOpen: boolean;
+  controlOpen: boolean;
   lang: string;
   onToggleMic: () => void;
   onToggleSpeaker: () => void;
   onToggleAnnounceAll: () => void;
   onToggleRight: () => void;
+  onToggleControl: () => void;
   onNewWorker: () => void;
   onNeedsYou: () => void;
   onLang: (lang: string) => void;
@@ -104,6 +107,9 @@ export function Header(p: Props) {
       </IconButton>
       <IconButton label={p.announceAll ? "Announcing every worker that finishes" : "Announcing only the worker you talk to"} className={p.announceAll ? "on" : ""} onClick={p.onToggleAnnounceAll}>
         <IconHeadphones size={16} />
+      </IconButton>
+      <IconButton label={p.controlOpen ? "Back to the HUD" : "Control center: projects, config, Docker, tasks"} className={p.controlOpen ? "on" : ""} onClick={p.onToggleControl}>
+        <IconAdjustmentsHorizontal size={16} />
       </IconButton>
       <IconButton label="New worker" onClick={p.onNewWorker}>
         <IconPlus size={16} />

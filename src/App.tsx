@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EvolutionItem, HistoryItem, TodoItem, WorkerView } from "../shared/types.ts";
 import { api, useHud } from "./api.ts";
 import { CookingNow } from "./components/CookingNow.tsx";
+import { ControlCenter } from "./components/control/ControlCenter.tsx";
 import { Header } from "./components/Header.tsx";
 import { NewWorkerModal, type NewWorkerInput } from "./components/NewWorkerModal.tsx";
 import { Orb, type OrbPhase } from "./components/Orb.tsx";
@@ -37,6 +38,7 @@ export function App() {
   const [speakerOn, setSpeakerOn] = useState(true);
   const [announceAll, setAnnounceAll] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
+  const [view, setView] = useState<"hud" | "control">("hud");
   const [lang, setLang] = useState(readLang);
   const [mode, setMode] = useState<InputMode>("talk");
   const [draft, setDraft] = useState("");
@@ -140,6 +142,7 @@ export function App() {
     try {
       const w = await api<WorkerView>("POST", "/api/workers", { resumeSessionId: item.id, cwd: item.cwd, title: item.title });
       setSelectedId(w.id);
+      setView("hud");
     } catch (err) {
       setToast((err as Error).message);
     }
@@ -207,6 +210,7 @@ export function App() {
         speakerOn={speakerOn}
         announceAll={announceAll}
         rightOpen={rightOpen}
+        controlOpen={view === "control"}
         lang={lang}
         onToggleMic={() => {
           voice.clearError();
@@ -218,14 +222,17 @@ export function App() {
         }}
         onToggleAnnounceAll={() => setAnnounceAll((a) => !a)}
         onToggleRight={() => setRightOpen((r) => !r)}
+        onToggleControl={() => setView((v) => (v === "hud" ? "control" : "hud"))}
         onNewWorker={() => setModal({ opened: true, task: "" })}
         onNeedsYou={() => needsYou[0] && setSelectedId(needsYou[0].id)}
         onLang={changeLang}
       />
 
-      <CookingNow workers={hud.workers} selectedId={selectedId} talkingId={talkingId} now={now} onSelect={setSelectedId} onNewWorker={() => setModal({ opened: true, task: "" })} />
+      {view === "control" && <ControlCenter now={now} tasks={hud.tasks} onOpenWorker={(h) => void openHistory(h)} onError={setToast} />}
 
-      <div className={`hud-body ${rightOpen ? "" : "no-right"}`}>
+      {view === "hud" && <CookingNow workers={hud.workers} selectedId={selectedId} talkingId={talkingId} now={now} onSelect={setSelectedId} onNewWorker={() => setModal({ opened: true, task: "" })} />}
+
+      {view === "hud" && <div className={`hud-body ${rightOpen ? "" : "no-right"}`}>
         <Sidebar
           tab={tab}
           onTab={setTab}
@@ -277,7 +284,7 @@ export function App() {
             onToggleTodo={toggleTodo}
           />
         )}
-      </div>
+      </div>}
 
       <NewWorkerModal
         opened={modal.opened}

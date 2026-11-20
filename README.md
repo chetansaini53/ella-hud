@@ -124,6 +124,28 @@ Restart `pnpm start` after you change `.env`.
 
 A worker's process exits after every turn and is resumed (`--resume`) on your next message, so idle workers cost no RAM.
 
+## Control Center
+
+The sliders icon in the header switches the HUD to the **Control Center**. On the left is **Global profile**, followed by every project Claude Code knows: the folders in `~/.claude.json` plus any folder that has session transcripts. Each one has these tabs:
+
+| Tab | Global profile | A project |
+|---|---|---|
+| **Sessions** | Every Claude Code session running right now (`claude agents --json`) | Its running sessions, plus all of its session files. Click **Open** to continue one as a worker |
+| **Config** | `~/.claude/CLAUDE.md`, rules, skills, agents, slash commands, permissions, hooks | That project's `CLAUDE.md`, `.claude/` settings, skills, rules, agents, hooks, permissions |
+| **MCP & Plugins** | User MCP servers, a **health check** (`claude mcp list`), and installed plugins with enable/disable | User, local and project servers. Project `.mcp.json` servers can be approved or rejected |
+| **Docker** | Disk used by images, build cache, and every compose project, grouped by Claude project | Only this project's containers and volumes, with start/stop |
+| **Tasks** | Tasks started from Claudia, plus Playwright and browser-automation processes | Its `package.json` scripts and Playwright (run tests, UI mode, report) with one‑click start/stop and live logs. Also lists other processes using the folder |
+| **Commands** | Read‑only `claude` commands: `--version`, `doctor`, `auth status`, `mcp list`, `plugin list`, `agents` | The same commands, run inside the project folder |
+
+**Claudia does not change your Claude Code setup on its own.** Everything is read‑only until you click one of these four actions, and each one asks you to confirm first:
+
+- Approving or rejecting a project `.mcp.json` server writes `.claude/settings.local.json` (a backup is kept as `settings.local.json.claudia-bak`). This is the same file Claude Code's own approval prompt writes.
+- Enabling or disabling a plugin runs the official `claude plugin enable|disable` command.
+- Starting or stopping a Docker container.
+- Killing a listed process.
+
+Secrets are masked in every view: MCP `env` and `headers`, token‑looking arguments, and keys whose names contain `key`, `token` or `secret`.
+
 ## Configuration (`.env`)
 
 All values are optional.

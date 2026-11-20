@@ -1,5 +1,5 @@
 import { useEffect, useReducer } from "react";
-import type { AppConfig, ServerEvent, Usage, WorkerView } from "../shared/types.ts";
+import type { AppConfig, ServerEvent, TaskView, Usage, WorkerView } from "../shared/types.ts";
 
 export async function api<T>(method: string, url: string, body?: unknown): Promise<T> {
   let res: Response;
@@ -24,18 +24,20 @@ export interface HudState {
   usage: Usage;
   vpn: boolean;
   config: AppConfig | null;
+  tasks: TaskView[];
 }
 
 type Action = ServerEvent | { type: "disconnected" };
 
 const MAX_MESSAGES = 200;
 
-const initial: HudState = { connected: false, workers: [], usage: { session: null, week: null }, vpn: false, config: null };
+const initial: HudState = { connected: false, workers: [], usage: { session: null, week: null }, vpn: false, config: null, tasks: [] };
+const MAX_TASK_LINES = 500;
 
 function reducer(state: HudState, ev: Action): HudState {
   switch (ev.type) {
     case "snapshot":
-      return { connected: true, workers: ev.workers, usage: ev.usage, vpn: ev.vpn, config: ev.config };
+      return { connected: true, workers: ev.workers, usage: ev.usage, vpn: ev.vpn, config: ev.config, tasks: ev.tasks };
     case "worker": {
       const exists = state.workers.some((w) => w.id === ev.worker.id);
       return {
@@ -54,6 +56,17 @@ function reducer(state: HudState, ev: Action): HudState {
       return { ...state, usage: ev.usage };
     case "vpn":
       return { ...state, vpn: ev.vpn };
+    case "task": {
+      const exists = state.tasks.some((t) => t.id === ev.task.id);
+      return {
+        ...state,
+        tasks: exists ? state.tasks.map((t) => (t.id === ev.task.id ? { ...ev.task, lines: t.lines } : t)) : [...state.tasks, { ...ev.task, lines: [] }],
+      };
+    }
+    case "task-log":
+      return { ...state, tasks: state.tasks.map((t) => (t.id === ev.id ? { ...t, lines: [...t.lines, ...ev.lines].slice(-MAX_TASK_LINES) } : t)) };
+    case "task-removed":
+      return { ...state, tasks: state.tasks.filter((t) => t.id !== ev.id) };
     case "disconnected":
       return { ...state, connected: false };
   }
