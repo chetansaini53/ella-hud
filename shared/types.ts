@@ -4,7 +4,7 @@ export type Model = (typeof MODELS)[number];
 export const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 export type Effort = (typeof EFFORTS)[number];
 
-export type WorkerStatus = "starting" | "cooking" | "idle" | "needs-you" | "error" | "stopped";
+export type WorkerStatus = "starting" | "working" | "idle" | "needs-you" | "error" | "stopped";
 
 export interface SubagentLine {
   id: string;
@@ -75,6 +75,30 @@ export interface AppConfig {
   defaultCwd: string;
   permissionMode: string;
   maxWorkers: number;
+}
+
+/* ---------- Which Claude this instance drives ---------- */
+
+export interface ClaudeBinary {
+  path: string;
+  version: string;
+  source: string;
+}
+
+export interface ClaudeProfile {
+  configDir: string;
+  label: string;
+  source: string;
+  account: string | null;
+  projects: number;
+}
+
+export interface InstanceInfo {
+  name: string;
+  bin: string;
+  configDir: string;
+  port: number;
+  saved: boolean;
 }
 
 /* ---------- Control center ---------- */
@@ -216,7 +240,8 @@ export interface CommandResult {
 }
 
 export type ServerEvent =
-  | { type: "snapshot"; workers: WorkerView[]; usage: Usage; vpn: boolean; config: AppConfig; tasks: TaskView[] }
+  | { type: "snapshot"; workers: WorkerView[]; usage: Usage; vpn: boolean; config: AppConfig; tasks: TaskView[]; instance: InstanceInfo }
+  | { type: "instance"; instance: InstanceInfo }
   | { type: "worker"; worker: WorkerMeta }
   | { type: "message"; workerId: string; message: ChatMessage }
   | { type: "worker-removed"; id: string }

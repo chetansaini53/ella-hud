@@ -4,7 +4,7 @@ import path from "node:path";
 import type { TodoItem } from "../shared/types.ts";
 import { HttpError } from "./http-error.ts";
 
-const FILE = path.resolve("data", "todos.json");
+const FILE = path.join(import.meta.dirname, "..", "data", "todos.json");
 const MAX_TODOS = 200;
 
 let todos: TodoItem[] | null = null;

@@ -5,7 +5,7 @@ import { ago } from "../format.ts";
 
 const STATUS_TEXT: Record<WorkerView["status"], string> = {
   starting: "starting",
-  cooking: "cooking",
+  working: "working",
   idle: "done, waiting",
   "needs-you": "needs you",
   error: "error",
@@ -48,13 +48,13 @@ function WorkerCard({ w, selected, talking, now, onSelect }: { w: WorkerView; se
   );
 }
 
-export function CookingNow({ workers, selectedId, talkingId, now, onSelect, onNewWorker }: Props) {
-  const running = workers.filter((w) => w.status === "cooking" || w.status === "starting").length;
+export function WorkingOn({ workers, selectedId, talkingId, now, onSelect, onNewWorker }: Props) {
+  const running = workers.filter((w) => w.status === "working" || w.status === "starting").length;
   const visible = workers.filter((w) => w.status !== "stopped");
   return (
-    <section className="cooking" aria-label="Workers">
-      <div className="cooking-head">
-        <span className="cooking-title label-caps">Cooking now</span>
+    <section className="working" aria-label="Workers">
+      <div className="working-head">
+        <span className="working-title label-caps">Working on</span>
         <span className="dim">{running} running</span>
       </div>
       <div className="cards">
@@ -63,7 +63,7 @@ export function CookingNow({ workers, selectedId, talkingId, now, onSelect, onNe
         ))}
         {visible.length === 0 && (
           <div className="cards-empty">
-            <span>No workers yet. Give one a task and watch it cook.</span>
+            <span>No workers yet. Give one a task and watch it work.</span>
             <Button size="xs" leftSection={<IconPlus size={14} />} onClick={onNewWorker}>
               New worker
             </Button>

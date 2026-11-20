@@ -13,19 +13,25 @@ const MAX_OUTPUT = 4 * 1024 * 1024;
 /** Runs a binary without a shell; never rejects — the caller reads code/stderr. */
 export function run(bin: string, args: string[], opts: { cwd?: string; timeoutMs?: number } = {}): Promise<ExecResult> {
   return new Promise((resolve) => {
-    execFile(
-      bin,
-      args,
-      { cwd: opts.cwd, timeout: opts.timeoutMs ?? 30_000, maxBuffer: MAX_OUTPUT, windowsHide: true, encoding: "utf8" },
-      (err, stdout, stderr) => {
-        const e = err as (NodeJS.ErrnoException & { killed?: boolean; code?: number | string }) | null;
-        if (e && typeof e.code === "string") {
-          resolve({ code: null, stdout: "", stderr: `${bin}: ${e.message}`, timedOut: false });
-          return;
-        }
-        resolve({ code: e ? (typeof e.code === "number" ? e.code : 1) : 0, stdout, stderr, timedOut: Boolean(e?.killed) });
-      },
-    );
+    try {
+      const child = execFile(
+        bin,
+        args,
+        { cwd: opts.cwd, timeout: opts.timeoutMs ?? 30_000, maxBuffer: MAX_OUTPUT, windowsHide: true, encoding: "utf8" },
+        (err, stdout, stderr) => {
+          const e = err as (NodeJS.ErrnoException & { killed?: boolean; code?: number | string }) | null;
+          if (e && typeof e.code === "string") {
+            resolve({ code: null, stdout: "", stderr: `${bin}: ${e.message}`, timedOut: false });
+            return;
+          }
+          resolve({ code: e ? (typeof e.code === "number" ? e.code : 1) : 0, stdout, stderr, timedOut: Boolean(e?.killed) });
+        },
+      );
+      child.on("error", () => undefined);
+    } catch (err) {
+      // Windows throws synchronously (spawn UNKNOWN) for files that aren't valid executables.
+      resolve({ code: null, stdout: "", stderr: `${bin}: ${(err as Error).message}`, timedOut: false });
+    }
   });
 }
 

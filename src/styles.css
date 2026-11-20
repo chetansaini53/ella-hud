@@ -42,7 +42,7 @@
   --s3: 12px;
   --s4: 16px;
 
-  --header-h: 43px;
+  --header-h: 48px;
   --left-w: 258px;
   --right-w: 345px;
   --ease: 180ms ease-out;
@@ -227,17 +227,17 @@ body {
   color: var(--hud-red);
 }
 
-/* ---------- cooking now ---------- */
-.cooking {
+/* ---------- working on ---------- */
+.working {
   padding: 10px var(--s2) 16px;
 }
-.cooking-head {
+.working-head {
   display: flex;
   align-items: baseline;
   gap: 10px;
   margin-bottom: 10px;
 }
-.cooking-title {
+.working-title {
   color: var(--hud-cyan-text);
   font-size: var(--fs-body);
 }
@@ -312,7 +312,7 @@ body {
   margin-left: auto;
   color: var(--hud-text-dim);
 }
-.status-cooking,
+.status-working,
 .status-starting {
   color: var(--hud-cyan-soft);
 }
@@ -985,4 +985,64 @@ body {
 .quick-meta {
   color: var(--hud-text-dim);
   font-size: var(--fs-meta);
+}
+
+/* ---------- labelled header buttons ---------- */
+.hdr-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 46px;
+  height: 38px;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  color: var(--hud-text-2);
+  transition: background var(--ease), color var(--ease), border-color var(--ease);
+}
+.hdr-btn:hover {
+  color: var(--hud-text);
+  background: rgba(98, 217, 240, 0.06);
+  border-color: var(--hud-line-strong);
+}
+.hdr-btn.on {
+  color: var(--hud-cyan-soft);
+  border-color: rgba(98, 217, 240, 0.35);
+  background: rgba(98, 217, 240, 0.06);
+}
+.hdr-btn.alert {
+  color: var(--hud-red);
+  border-color: rgba(220, 113, 138, 0.45);
+}
+.hdr-label {
+  font-size: var(--fs-meta);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+@media (max-width: 1500px) {
+  .meter-sub {
+    display: none;
+  }
+}
+@media (max-width: 1280px) {
+  .hdr-label {
+    display: none;
+  }
+  .hdr-btn {
+    min-width: 34px;
+  }
+}
+
+.ctl-subtabs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.ctl-stat-actions {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
 }

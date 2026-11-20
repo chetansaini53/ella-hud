@@ -56,7 +56,7 @@ export function ControlCenter({ now, tasks, onOpenWorker, onError }: Props) {
               filtered.map((p) => (
                 <button key={p.key} type="button" className={`item ${p.path === selected ? "selected" : ""}`} onClick={() => setSelected(p.path)} title={p.path}>
                   <div className="item-title">
-                    {p.name} {runningIn(p.path) > 0 && <span className="dot status-cooking" aria-label="task running" />}
+                    {p.name} {runningIn(p.path) > 0 && <span className="dot status-working" aria-label="task running" />}
                   </div>
                   <div className="item-meta">
                     {p.sessions} sessions{p.lastActive ? `, ${new Date(p.lastActive).toLocaleDateString("en-GB")} ${hhmm(p.lastActive)}` : ""}

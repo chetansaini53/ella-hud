@@ -22,7 +22,8 @@
     "build": "vite build",
     "start": "vite build && node --env-file-if-exists=.env server/index.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node --test server/*.test.ts"
+    "test": "node --test server/*.test.ts",
+    "serve": "node --env-file-if-exists=.env server/index.ts"
   },
   "dependencies": {
     "@fontsource/exo-2": "5.3.0",
