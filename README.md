@@ -22,10 +22,6 @@ A sci‑fi command center for **Claude Code**. It runs several Claude Code sessi
 
 ![New worker dialog](docs/screenshots/new-worker.webp)
 
-**Control Center → Config.** Your global profile and each project's `CLAUDE.md`, skills, rules, agents, slash commands, permissions and hooks, all read‑only:
-
-![Control Center config view](docs/screenshots/control-config.webp)
-
 **Control Center → MCP & Plugins.** Every MCP server with its scope, a one‑click health check, and plugin switches:
 
 ![Control Center MCP and plugins](docs/screenshots/control-mcp.webp)
