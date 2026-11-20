@@ -11,7 +11,7 @@ const samePath = (a: string, b: string) => a.toLowerCase().replace(/[\\/]+$/, ""
 
 export function SessionsPanel({ project, now, onOpenWorker }: { project: ProjectItem | null; now: number; onOpenWorker: (item: HistoryItem) => void }) {
   const live = useFetch<ClaudeSessionProc[]>("/api/claude-sessions");
-  const sessions = useFetch<(HistoryItem & { claudia: boolean })[]>(project ? `/api/projects/sessions?${projectQuery(project.path)}` : null);
+  const sessions = useFetch<(HistoryItem & { ella: boolean })[]>(project ? `/api/projects/sessions?${projectQuery(project.path)}` : null);
 
   return (
     <>
@@ -50,7 +50,7 @@ export function SessionsPanel({ project, now, onOpenWorker }: { project: Project
                   {d.map((s) => (
                     <tr key={s.id}>
                       <td>
-                        {s.title} {s.claudia && <Badge size="xs" variant="outline" ml={6}>Claudia</Badge>}
+                        {s.title} {s.ella && <Badge size="xs" variant="outline" ml={6}>Ella</Badge>}
                         <div className="mono dim">{s.id}</div>
                       </td>
                       <td>{s.asks}</td>
@@ -113,7 +113,7 @@ export function ConfigPanel({ project }: { project: ProjectItem | null }) {
     <Loadable state={cfg} empty="">
       {(c) => (
         <>
-          <p className="ctl-note">Read-only view. Claudia never edits these files: change them in Claude Code or your editor.</p>
+          <p className="ctl-note">Read-only view. Ella never edits these files: change them in Claude Code or your editor.</p>
           <Section title={c.scope === "global" ? "Global profile files" : "Project files"}>
             <table className="ctl-table">
               <tbody>

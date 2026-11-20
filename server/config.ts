@@ -273,7 +273,7 @@ export async function setProjectMcp(project: ProjectItem, name: unknown, enabled
     const parsed = await readJson(file);
     if (!parsed) throw new HttpError(409, ".claude/settings.local.json is not valid JSON — fix it by hand first");
     current = parsed;
-    await copyFile(file, `${file}.claudia-bak`);
+    await copyFile(file, `${file}.ella-bak`);
   }
   const list = (k: string) => new Set(Array.isArray(current[k]) ? (current[k] as string[]) : []);
   const on = list("enabledMcpjsonServers");
@@ -302,7 +302,7 @@ export async function listPlugins(claudeBin: string): Promise<PluginInfo[]> {
   }
 }
 
-/** Uses the official CLI so Claude Code itself owns the settings write. User scope only (project/local would write to Claudia's own folder). */
+/** Uses the official CLI so Claude Code itself owns the settings write. User scope only (project/local would write to Ella's own folder). */
 export async function setPlugin(claudeBin: string, id: unknown, enabled: unknown): Promise<string> {
   if (typeof id !== "string" || !NAME.test(id) || id.startsWith("-")) throw new HttpError(400, "Invalid plugin id");
   if (typeof enabled !== "boolean") throw new HttpError(400, "enabled must be true or false");

@@ -11,7 +11,7 @@ export async function api<T>(method: string, url: string, body?: unknown): Promi
       signal: AbortSignal.timeout(15_000),
     });
   } catch {
-    throw new Error("Claudia server is not reachable — is it running?");
+    throw new Error("Ella server is not reachable — is it running?");
   }
   const data = (await res.json().catch(() => ({}))) as { error?: string };
   if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);

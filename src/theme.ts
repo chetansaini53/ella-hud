@@ -9,7 +9,7 @@ export const theme = createTheme({
   colors: { hud },
   fontFamily: "'Exo 2', system-ui, sans-serif",
   headings: { fontFamily: "'Exo 2', system-ui, sans-serif" },
-  defaultRadius: 0,
+  defaultRadius: "md",
   black: "#04070f",
   components: {
     Tooltip: { defaultProps: { openDelay: 300, withArrow: true, color: "dark" } },

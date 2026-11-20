@@ -8,7 +8,7 @@ import { log } from "./log.ts";
 /** Same lookup Claude Code uses: $CLAUDE_CONFIG_DIR, else ~/.claude. */
 export const CLAUDE_DIR = process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude");
 export const PROJECTS_DIR = path.join(CLAUDE_DIR, "projects");
-const HISTORY_LIMIT = 80;
+const HISTORY_LIMIT = 150;
 const EVOLUTION_LIMIT = 60;
 const SCAN_CONCURRENCY = 4;
 const NEWLINE = 0x0a;

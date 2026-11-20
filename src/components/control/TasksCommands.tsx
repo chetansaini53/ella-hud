@@ -72,7 +72,7 @@ export function TasksPanel({ project, tasks, now, onError }: { project: ProjectI
         </Section>
       )}
 
-      <Section title={project ? "Tasks in this project" : "Tasks started from Claudia"} count={mine.length}>
+      <Section title={project ? "Tasks in this project" : "Tasks started from Ella"} count={mine.length}>
         {mine.length === 0 && <div className="ctl-state">No tasks yet{project ? " — start one above." : "."}</div>}
         {mine.map((t) => (
           <div key={t.id} className="task-row">

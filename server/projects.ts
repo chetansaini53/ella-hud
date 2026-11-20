@@ -5,7 +5,7 @@ import type { HistoryItem, ProjectItem } from "../shared/types.ts";
 import { HttpError } from "./http-error.ts";
 import { PROJECTS_DIR, projectName, readdirSafe, scanSession, type FileRef } from "./history.ts";
 
-/** ~/.claude.json is Claude Code's own state file; Claudia only ever reads it. */
+/** ~/.claude.json is Claude Code's own state file; Ella only ever reads it. */
 export const CLAUDE_JSON = path.join(process.env.CLAUDE_CONFIG_DIR ?? os.homedir(), ".claude.json");
 const SESSION_LIMIT = 300;
 
@@ -116,8 +116,8 @@ export async function requireProject(raw: unknown): Promise<ProjectItem> {
   return found;
 }
 
-export async function projectSessions(project: ProjectItem): Promise<(HistoryItem & { claudia: boolean })[]> {
+export async function projectSessions(project: ProjectItem): Promise<(HistoryItem & { ella: boolean })[]> {
   const files = (await sessionFiles(path.join(PROJECTS_DIR, project.key))).slice(0, SESSION_LIMIT);
   const items = await Promise.all(files.map((f) => scanSession(f).catch(() => null)));
-  return items.filter((x): x is HistoryItem => x !== null).map((h) => ({ ...h, claudia: h.title.startsWith("Claudia:") }));
+  return items.filter((x): x is HistoryItem => x !== null).map((h) => ({ ...h, ella: /^(Ella|Claudia):/.test(h.title) }));
 }

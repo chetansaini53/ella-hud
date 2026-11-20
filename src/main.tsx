@@ -32,6 +32,7 @@ import "@mantine/core/styles/Text.css";
 import "@mantine/core/styles/Group.css";
 import "@mantine/core/styles/Badge.css";
 import "@mantine/core/styles/Switch.css";
+import "@mantine/core/styles/Indicator.css";
 import "./styles.css";
 import { theme } from "./theme.ts";
 import { App } from "./App.tsx";

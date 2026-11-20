@@ -228,7 +228,7 @@ export class WorkerManager extends EventEmitter {
     ];
     if (w.view.sessionId) args.push("--resume", w.view.sessionId);
     else if (w.forkFrom) args.push("--resume", w.forkFrom, "--fork-session");
-    else args.push("--name", `Claudia: ${w.view.title}`.slice(0, 80));
+    else args.push("--name", `Ella: ${w.view.title}`.slice(0, 80));
 
     const proc = spawn(this.#settings.claudeBin, args, { cwd: w.view.cwd, windowsHide: true, env: process.env, detached: process.platform !== "win32" });
     w.proc = proc;

@@ -171,7 +171,7 @@ server.on("error", (err: NodeJS.ErrnoException) => {
   log("error", err.code === "EADDRINUSE" ? `Port ${PORT} is busy — set PORT in .env` : "server error", { err: err.message });
   process.exit(1);
 });
-server.listen(PORT, HOST, () => log("info", "claudia-hud listening", { url: `http://${HOST}:${PORT}`, roots: settings.workspaceRoots }));
+server.listen(PORT, HOST, () => log("info", "ella-hud listening", { url: `http://${HOST}:${PORT}`, roots: settings.workspaceRoots }));
 
 function shutdown(): void {
   workers.shutdown();

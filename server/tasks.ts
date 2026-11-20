@@ -103,7 +103,7 @@ export class TaskManager extends EventEmitter {
     if (proc.stdout) createInterface({ input: proc.stdout }).on("line", onLine);
     if (proc.stderr) createInterface({ input: proc.stderr }).on("line", onLine);
     proc.on("error", (err) => {
-      this.#line(t, `[claudia] ${err.message}`);
+      this.#line(t, `[ella] ${err.message}`);
       this.#finish(t, proc, "failed", null);
     });
     proc.on("exit", (code) => this.#finish(t, proc, code === 0 ? "exited" : "failed", code));
@@ -225,7 +225,7 @@ export function mentionsFolder(commandLine: string, folder: string): boolean {
 
 export async function externalProcesses(projectPath: string | null): Promise<ExternalProc[]> {
   return (await allProcesses())
-    // Never list Claudia itself (or the shell that launched it) as something to kill.
+    // Never list Ella itself (or the shell that launched it) as something to kill.
     .filter((p) => p.pid !== process.pid && p.pid !== process.ppid && p.commandLine && (projectPath ? mentionsFolder(p.commandLine, projectPath) : PLAYWRIGHT_PROC.test(p.commandLine)))
     .map((p) => ({ pid: p.pid, name: p.name, commandLine: p.commandLine.slice(0, 400), playwright: PLAYWRIGHT_PROC.test(p.commandLine) }));
 }

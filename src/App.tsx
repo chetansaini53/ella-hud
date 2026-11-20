@@ -6,12 +6,13 @@ import { CookingNow } from "./components/CookingNow.tsx";
 import { ControlCenter } from "./components/control/ControlCenter.tsx";
 import { Header } from "./components/Header.tsx";
 import { NewWorkerModal, type NewWorkerInput } from "./components/NewWorkerModal.tsx";
+import { MeetingsModal, TodoModal } from "./components/PlannerModals.tsx";
 import { Orb, type OrbPhase } from "./components/Orb.tsx";
 import { RightPanel, type InputMode } from "./components/RightPanel.tsx";
 import { Sidebar, type Loadable, type SideTab } from "./components/Sidebar.tsx";
 import { useVoice } from "./voice.ts";
 
-const LANG_KEY = "claudia.lang";
+const LANG_KEY = "ella.lang";
 const BUSY = new Set<WorkerView["status"]>(["cooking", "starting"]);
 
 function readLang(): string {
@@ -39,6 +40,7 @@ export function App() {
   const [announceAll, setAnnounceAll] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
   const [view, setView] = useState<"hud" | "control">("hud");
+  const [planner, setPlanner] = useState<"meetings" | "todo" | null>(null);
   const [lang, setLang] = useState(readLang);
   const [mode, setMode] = useState<InputMode>("talk");
   const [draft, setDraft] = useState("");
@@ -211,6 +213,7 @@ export function App() {
         announceAll={announceAll}
         rightOpen={rightOpen}
         controlOpen={view === "control"}
+        openTodos={todos?.filter((t) => !t.done).length ?? 0}
         lang={lang}
         onToggleMic={() => {
           voice.clearError();
@@ -223,6 +226,8 @@ export function App() {
         onToggleAnnounceAll={() => setAnnounceAll((a) => !a)}
         onToggleRight={() => setRightOpen((r) => !r)}
         onToggleControl={() => setView((v) => (v === "hud" ? "control" : "hud"))}
+        onMeetings={() => setPlanner("meetings")}
+        onTodos={() => setPlanner("todo")}
         onNewWorker={() => setModal({ opened: true, task: "" })}
         onNeedsYou={() => needsYou[0] && setSelectedId(needsYou[0].id)}
         onLang={changeLang}
@@ -267,7 +272,6 @@ export function App() {
 
         {rightOpen && (
           <RightPanel
-            now={now}
             worker={selected}
             workers={hud.workers}
             onSelectWorker={setSelectedId}
@@ -279,12 +283,12 @@ export function App() {
             onStop={stop}
             onTyping={voice.setPaused}
             listening={voice.phase === "listening"}
-            todos={todos}
-            onAddTodo={addTodo}
-            onToggleTodo={toggleTodo}
           />
         )}
       </div>}
+
+      <TodoModal opened={planner === "todo"} now={now} todos={todos} onClose={() => setPlanner(null)} onAdd={addTodo} onToggle={toggleTodo} />
+      <MeetingsModal opened={planner === "meetings"} onClose={() => setPlanner(null)} />
 
       <NewWorkerModal
         opened={modal.opened}
@@ -297,7 +301,7 @@ export function App() {
       />
 
       {toast && (
-        <Notification className="toast" color="red" onClose={() => setToast(null)} title="Claudia">
+        <Notification className="toast" color="red" onClose={() => setToast(null)} title="Ella">
           {toast}
         </Notification>
       )}
