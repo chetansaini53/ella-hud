@@ -87,7 +87,7 @@ export function describeTool(name: string, input: Record<string, unknown>): stri
   const str = (k: string) => (typeof input[k] === "string" ? (input[k] as string) : "");
   const detail =
     str("description") ||
-    (str("file_path") && path.basename(str("file_path"))) ||
+    (str("file_path") && path.win32.basename(str("file_path"))) || // win32 splits both / and \, on any host OS
     str("pattern") ||
     str("command") ||
     str("url") ||
@@ -132,8 +132,9 @@ export class WorkerManager extends EventEmitter {
     return [...this.#workers.values()].map((w) => w.view);
   }
 
-  create(input: CreateInput): WorkerView {
-    const cwd = this.#validateCwd(input.cwd);
+  /** `trustedCwd`: resuming a session in a folder Claude Code already trusts may sit outside WORKSPACE_ROOTS. */
+  create(input: CreateInput, opts: { trustedCwd?: boolean } = {}): WorkerView {
+    const cwd = this.#validateCwd(input.cwd, opts.trustedCwd === true && input.resumeSessionId !== undefined);
     const model = pick(input.model, MODELS, "opus" satisfies Model);
     const effort = pick(input.effort, EFFORTS, "high" satisfies Effort);
     const resume = input.resumeSessionId === undefined ? null : validateSessionId(input.resumeSessionId);
@@ -357,7 +358,7 @@ export class WorkerManager extends EventEmitter {
     this.#set(w, { status, activity: null, subagents: [] });
   }
 
-  #validateCwd(raw: unknown): string {
+  #validateCwd(raw: unknown, allowOutsideRoots = false): string {
     if (typeof raw !== "string" || !raw.trim() || !path.isAbsolute(raw.trim())) {
       throw new HttpError(400, "cwd must be an absolute folder path");
     }
@@ -372,7 +373,9 @@ export class WorkerManager extends EventEmitter {
       const rel = path.relative(root, real);
       return rel === "" || (rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel));
     });
-    if (!inside) throw new HttpError(403, "cwd is outside WORKSPACE_ROOTS");
+    if (!inside && !allowOutsideRoots) {
+      throw new HttpError(403, `${real} is outside WORKSPACE_ROOTS (${this.#settings.workspaceRoots.join(", ")}). Add it to WORKSPACE_ROOTS in .env and restart.`);
+    }
     return real;
   }
 

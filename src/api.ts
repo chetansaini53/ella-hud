@@ -33,7 +33,7 @@ type Action = ServerEvent | { type: "disconnected" };
 
 const MAX_MESSAGES = 200;
 
-const initial: HudState = { connected: false, workers: [], usage: { session: null, week: null }, vpn: false, config: null, tasks: [], instance: null };
+const initial: HudState = { connected: false, workers: [], usage: { session: null, week: null, details: [] }, vpn: false, config: null, tasks: [], instance: null };
 const MAX_TASK_LINES = 500;
 
 function reducer(state: HudState, ev: Action): HudState {

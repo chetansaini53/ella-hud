@@ -33,3 +33,18 @@ export function dayGroup(t: number, now: number): string {
 }
 
 export const longDate = (t: number) => new Date(t).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
+
+/** "1 h 22 min 05 s" countdown to `at`; empty string once it has passed. */
+export function countdown(at: number, now: number): string {
+  const d = Math.max(0, at - now);
+  const days = Math.floor(d / DAY);
+  const h = Math.floor((d % DAY) / (60 * MIN));
+  const m = Math.floor((d % (60 * MIN)) / MIN);
+  const sec = Math.floor((d % MIN) / 1000);
+  if (days) return `${days} d ${h} h ${m} min`;
+  return `${h ? `${h} h ` : ""}${m} min${h ? "" : ` ${String(sec).padStart(2, "0")} s`}`;
+}
+
+/** "Fri 20 Nov, 17:50" */
+export const resetStamp = (at: number) =>
+  `${new Date(at).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}, ${hhmm(at)}`;

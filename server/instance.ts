@@ -51,6 +51,19 @@ export function samePath(a: string, b: string): boolean {
 
 const isDefaultDir = (dir: string) => samePath(dir, DEFAULT_DIR);
 
+/**
+ * Started from inside a Claude Code session (e.g. its terminal), the server inherits that host session's
+ * variables (child-session flags, a host auth proxy URL). Spawned CLIs would then ignore the user's own
+ * login and fail with "OAuth session expired". Drop them; user settings like CLAUDE_CONFIG_DIR stay.
+ */
+export function dropHostSessionEnv(): number {
+  if (!process.env.CLAUDECODE && !process.env.CLAUDE_CODE_CHILD_SESSION) return 0;
+  const hostVar = /^(CLAUDECODE|CLAUDE_CODE_\w+|CLAUDE_AGENT_SDK_\w+|CLAUDE_PREVIEW_\w+|CLAUDE_PID|CLAUDE_EFFORT|ANTHROPIC_BASE_URL)$/;
+  const names = Object.keys(process.env).filter((k) => hostVar.test(k));
+  for (const k of names) delete process.env[k];
+  return names.length;
+}
+
 export const claudeBin = () => current.bin;
 export const defaultClaudeDir = () => DEFAULT_DIR;
 export const isDefaultClaudeDir = isDefaultDir;

@@ -8,11 +8,12 @@ import { controlRoutes } from "./control-routes.ts";
 import { guardConfig, guardRequest, resolveStatic } from "./guard.ts";
 import { listEvolution, listHistory } from "./history.ts";
 import { HttpError } from "./http-error.ts";
-import { detect, initInstance, instanceInfo, onProfileChange, setInstance } from "./instance.ts";
+import { claudeBin, claudeDir, detect, dropHostSessionEnv, initInstance, instanceInfo, isDefaultClaudeDir, onProfileChange, setInstance } from "./instance.ts";
 import { log } from "./log.ts";
+import { projectEntry } from "./projects.ts";
 import { TaskManager } from "./tasks.ts";
 import { addTodo, listTodos, setTodoDone } from "./todos.ts";
-import { UsageTracker } from "./usage.ts";
+import { UsageTracker, fetchUsage } from "./usage.ts";
 import { vpnActive } from "./vpn.ts";
 import { WorkerManager, loadWorkerSettings } from "./workers.ts";
 
@@ -25,6 +26,8 @@ const STREAMING = Symbol("streaming");
 // --dev (set by the dev:server script) also trusts the Vite dev server on 5173.
 const guard = guardConfig(PORT, process.argv.includes("--dev") ? 5173 : null);
 
+const droppedHostVars = dropHostSessionEnv();
+if (droppedHostVars) log("info", "started inside a Claude Code session — dropped its host variables so workers use your own login", { count: droppedHostVars });
 const settings = loadWorkerSettings(process.env);
 await initInstance(PORT, process.env.CLAUDE_BIN, settings.claudeBin);
 const config: AppConfig = {
@@ -40,7 +43,19 @@ const clients = new Set<ServerResponse>();
 onProfileChange(() => {
   usage.reset();
   broadcast({ type: "usage", usage: usage.get() });
+  void refreshUsage();
 });
+
+async function refreshUsage(): Promise<void> {
+  try {
+    const dir = claudeDir();
+    if (usage.setSnapshot(await fetchUsage(claudeBin(), isDefaultClaudeDir(dir) ? null : dir))) broadcast({ type: "usage", usage: usage.get() });
+  } catch (err) {
+    log("warn", "usage fetch failed", { err: (err as Error).message });
+  }
+}
+void refreshUsage();
+setInterval(() => void refreshUsage(), 60_000).unref();
 let vpn = vpnActive();
 
 function broadcast(event: ServerEvent): void {
@@ -71,7 +86,12 @@ const routes: [string, RegExp, Handler][] = [
   ["GET", /^\/api\/todos$/, () => listTodos()],
   ["POST", /^\/api\/todos$/, async (req) => addTodo((await body(req)).text)],
   ["PATCH", new RegExp(`^/api/todos/${ID}$`), async (req, _res, [id]) => setTodoDone(id ?? "", (await body(req)).done)],
-  ["POST", /^\/api\/workers$/, async (req) => workers.create(await body(req))],
+  ["POST", /^\/api\/workers$/, async (req) => {
+    const b = await body(req);
+    // Continuing an old session: a folder already trusted in Claude Code is allowed even outside WORKSPACE_ROOTS.
+    const trustedCwd = b.resumeSessionId !== undefined && typeof b.cwd === "string" && (await projectEntry(b.cwd)).hasTrustDialogAccepted === true;
+    return workers.create(b, { trustedCwd });
+  }],
   ["POST", new RegExp(`^/api/workers/${ID}/messages$`), async (req, _res, [id]) => workers.send(id ?? "", (await body(req)).text)],
   ["POST", new RegExp(`^/api/workers/${ID}/stop$`), (_req, _res, [id]) => workers.stop(id ?? "")],
   ["DELETE", new RegExp(`^/api/workers/${ID}$`), (_req, _res, [id]) => workers.remove(id ?? "")],
@@ -190,7 +210,9 @@ server.on("error", (err: NodeJS.ErrnoException) => {
   log("error", err.code === "EADDRINUSE" ? `Port ${PORT} is busy — set PORT in .env` : "server error", { err: err.message });
   process.exit(1);
 });
-server.listen(PORT, HOST, () => log("info", "ella-hud listening", { url: `http://${HOST}:${PORT}`, roots: settings.workspaceRoots, claude: instanceInfo(PORT) }));
+server.listen(PORT, HOST, () => {
+  log("info", "ella-hud listening", { url: `http://${HOST}:${PORT}`, roots: settings.workspaceRoots, claude: instanceInfo(PORT) });
+});
 
 function shutdown(): void {
   workers.shutdown();

@@ -45,6 +45,8 @@ export interface UsageWindow {
 export interface Usage {
   session: UsageWindow | null;
   week: UsageWindow | null;
+  /** Contributor lines from `/usage` (24h / 7d breakdown), for the meter tooltip. */
+  details: string[];
 }
 
 export interface HistoryItem {

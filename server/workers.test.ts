@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
 import { HttpError } from "./http-error.ts";
-import { UsageTracker } from "./usage.ts";
+import { UsageTracker, parseResetTime, parseUsageText } from "./usage.ts";
 import { WorkerManager, describeTool, loadWorkerSettings, prettyModel } from "./workers.ts";
 
 const tmp = mkdtempSync(path.join(os.tmpdir(), "ella-test-"));
@@ -32,6 +32,19 @@ describe("worker cwd boundary", () => {
   it("rejects a sibling whose name only starts with the root", () => {
     mkdirSync(`${root}-evil`);
     rejects({ task: "x", cwd: `${root}-evil` }, 403);
+  });
+});
+
+describe("resuming in a Claude-trusted folder", () => {
+  const sid = "11111111-2222-4333-8444-555555555555";
+  it("is allowed outside WORKSPACE_ROOTS when Claude Code trusts the folder", () => {
+    const w = manager.create({ cwd: outside, resumeSessionId: sid }, { trustedCwd: true });
+    assert.equal(w.status, "idle");
+    manager.remove(w.id);
+  });
+  it("is still refused when the folder is not trusted", () => rejects({ cwd: outside, resumeSessionId: sid }, 403));
+  it("never lets a new task escape the roots, trusted or not", () => {
+    assert.throws(() => manager.create({ task: "x", cwd: outside }, { trustedCwd: true }), (e: unknown) => e instanceof HttpError && e.status === 403);
   });
 });
 
@@ -82,5 +95,22 @@ describe("usage meters", () => {
     assert.equal(u.apply({ rate_limit_info: { status: "allowed", rateLimitType: "five_hour" } }), false);
     u.apply({ rate_limit_info: { rateLimitType: "five_hour", utilization: 0.5, resetsAt: 1 } });
     assert.equal(u.get().session, null);
+  });
+});
+
+describe("/usage parsing", () => {
+  const now = Date.parse("2026-11-20T10:00:00Z");
+  it("converts a zoned reset time to epoch", () => {
+    assert.equal(parseResetTime("Nov 20, 5:50pm (Asia/Kolkata)", now), Date.parse("2026-11-20T12:20:00Z"));
+    assert.equal(parseResetTime("Nov 22, 12:00am (UTC)", now), Date.parse("2026-11-22T00:00:00Z"));
+    assert.equal(parseResetTime("garbage", now), null);
+  });
+  it("reads session, week and contributor lines", () => {
+    const text = "Current session: 18% used · resets Nov 20, 5:50pm (Asia/Kolkata)\nCurrent week (all models): 21% used · resets Nov 22, 5:30pm (Asia/Kolkata)\n\nWhat's contributing to your usage?\nLast 24h · 194 requests";
+    const u = parseUsageText(text, now);
+    assert.equal(u.session?.pct, 18);
+    assert.equal(u.week?.pct, 21);
+    assert.equal(u.week?.resetsAt, Date.parse("2026-11-22T12:00:00Z"));
+    assert.deepEqual(u.details, ["Last 24h · 194 requests"]);
   });
 });

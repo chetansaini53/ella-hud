@@ -28,6 +28,8 @@ export function run(bin: string, args: string[], opts: { cwd?: string; timeoutMs
         },
       );
       child.on("error", () => undefined);
+      // Nothing is ever piped in; close stdin so CLIs don't wait for it (claude -p waits 3 s otherwise).
+      child.stdin?.end();
     } catch (err) {
       // Windows throws synchronously (spawn UNKNOWN) for files that aren't valid executables.
       resolve({ code: null, stdout: "", stderr: `${bin}: ${(err as Error).message}`, timedOut: false });

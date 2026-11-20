@@ -17,7 +17,7 @@ import {
 } from "@tabler/icons-react";
 import type { ReactNode } from "react";
 import type { AppConfig, Usage, UsageWindow } from "../../shared/types.ts";
-import { resetsText } from "../format.ts";
+import { countdown, resetStamp } from "../format.ts";
 
 export const VOICE_LANGS = [
   { value: "en-IN", label: "English (India)" },
@@ -55,16 +55,21 @@ interface Props {
   onSetup: () => void;
 }
 
-function Meter({ label, win, now }: { label: string; win: UsageWindow | null; now: number }) {
+function Meter({ label, win, now, details }: { label: string; win: UsageWindow | null; now: number; details: string[] }) {
+  const used = win ? Math.round(win.pct) : null;
+  const reset = win?.resetsAt ? `resets in ${countdown(win.resetsAt, now)} · ${resetStamp(win.resetsAt)}` : "reset time unknown";
+  const tip = win ? [`${used}% used · ${100 - (used ?? 0)}% left`, reset, ...details].join("\n") : "Reading /usage…";
   return (
-    <div className="meter" title={win ? undefined : "Fills in after a worker's first reply"}>
-      <span className="meter-label">{label}</span>
-      <div className="meter-track" role="progressbar" aria-label={`${label} usage`} aria-valuenow={win ? Math.round(win.pct) : undefined} aria-valuemin={0} aria-valuemax={100}>
-        <div className="meter-fill" style={{ width: `${win?.pct ?? 0}%` }} />
+    <Tooltip label={<div style={{ whiteSpace: "pre-line" }}>{tip}</div>} multiline>
+      <div className="meter">
+        <span className="meter-label">{label}</span>
+        <div className="meter-track" role="progressbar" aria-label={`${label} usage`} aria-valuenow={used ?? undefined} aria-valuemin={0} aria-valuemax={100}>
+          <div className="meter-fill" style={{ width: `${win?.pct ?? 0}%` }} />
+        </div>
+        <span className="meter-pct">{win ? `${used}% used · ${100 - (used ?? 0)}% left` : "—"}</span>
+        <span className="meter-sub">{win ? reset : "reading /usage…"}</span>
       </div>
-      <span className="meter-pct">{win ? `${Math.round(win.pct)}%` : "—"}</span>
-      <span className="meter-sub">{win ? resetsText(win.resetsAt, now) : "waiting for first reply"}</span>
-    </div>
+    </Tooltip>
   );
 }
 
@@ -105,8 +110,8 @@ export function Header(p: Props) {
         </button>
       </Tooltip>
 
-      <Meter label="SESSION" win={p.usage.session} now={p.now} />
-      <Meter label="WEEK" win={p.usage.week} now={p.now} />
+      <Meter label="SESSION" win={p.usage.session} now={p.now} details={p.usage.details} />
+      <Meter label="WEEK" win={p.usage.week} now={p.now} details={p.usage.details} />
       <span className="clock">{clock}</span>
 
       <IconButton label={p.micOn ? "Mute microphone" : "Unmute microphone"} text="Mic" className={p.micOn ? "on" : "alert"} onClick={p.onToggleMic}>

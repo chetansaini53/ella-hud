@@ -1050,3 +1050,27 @@ body {
 .ctl-note.ok {
   color: var(--hud-cyan-soft);
 }
+
+/* Live /usage text is long ("18% used · 82% left · resets in …"): keep the header on one line. */
+.pill {
+  white-space: nowrap;
+  flex: none;
+}
+.meter {
+  grid-template-columns: auto 48px auto;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.meter-pct {
+  white-space: nowrap;
+}
+.meter-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+@media (max-width: 1700px) {
+  .clock {
+    display: none;
+  }
+}
