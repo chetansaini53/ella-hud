@@ -4,6 +4,10 @@ A sci‑fi command center for **Claude Code**. It runs several Claude Code sessi
 
 > Unofficial community project. Not affiliated with or endorsed by Anthropic.
 
+![Ella HUD: workers, voice orb and grouped session sidebar](docs/screenshots/hud.webp)
+
+<sub>Private session titles and paths are blurred in these screenshots.</sub>
+
 - **Cooking now**: one live card per worker, showing the tool it is running ("Bash: typecheck web"), its model and effort, and any subagents it spawned.
 - **Voice**: speak to the selected worker. When a worker finishes its turn, Ella reads the reply aloud, and the orb reacts to your mic and her voice.
 - **Cooked**: your recent Claude Code sessions are **auto‑detected**, with no setup, and grouped by project. Click one to continue it as a worker. The session is forked, so the original is never touched.
@@ -11,6 +15,24 @@ A sci‑fi command center for **Claude Code**. It runs several Claude Code sessi
 - **SESSION / WEEK meters**: your plan usage and reset times, taken from the CLI's own rate‑limit events.
 - **NEEDS YOU**: flags workers that hit a permission wall or an error.
 - **To‑do**: a small local list, saved in `data/todos.json`.
+
+## Screenshots
+
+**Start a worker.** Give it a task and a folder, then pick the model and effort:
+
+![New worker dialog](docs/screenshots/new-worker.webp)
+
+**Control Center → Config.** Your global profile and each project's `CLAUDE.md`, skills, rules, agents, slash commands, permissions and hooks, all read‑only:
+
+![Control Center config view](docs/screenshots/control-config.webp)
+
+**Control Center → MCP & Plugins.** Every MCP server with its scope, a one‑click health check, and plugin switches:
+
+![Control Center MCP and plugins](docs/screenshots/control-mcp.webp)
+
+**Control Center → Docker.** Disk used by images and build cache, and each project's containers and volumes:
+
+![Control Center Docker usage](docs/screenshots/control-docker.webp)
 
 ## Which Claude plan do I need?
 
