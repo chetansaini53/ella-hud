@@ -1,0 +1,43 @@
+{
+  "name": "claudia-hud",
+  "version": "0.1.0",
+  "description": "Localhost HUD that runs several headless Claude Code sessions at once, with voice in and out.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.10.1",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "dashboard",
+    "agents",
+    "voice"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev:server": "node --watch --env-file-if-exists=.env server/index.ts --dev",
+    "dev:web": "vite",
+    "build": "vite build",
+    "start": "vite build && node --env-file-if-exists=.env server/index.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test server/*.test.ts"
+  },
+  "dependencies": {
+    "@fontsource/exo-2": "5.3.0",
+    "@mantine/core": "9.8.1",
+    "@mantine/hooks": "9.8.1",
+    "@tabler/icons-react": "3.52.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.3.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.8"
+  }
+}
