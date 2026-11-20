@@ -11,10 +11,11 @@ const BASE_ENERGY: Record<OrbPhase, number> = { idle: 0.25, thinking: 0.55, list
 interface Props {
   phase: OrbPhase;
   levelRef: RefObject<number>;
+  name: string;
 }
 
 /** Canvas orb: wobbling gold→coral rings around a glowing core; energy follows the voice phase and mic level. */
-export function Orb({ phase, levelRef }: Props) {
+export function Orb({ phase, levelRef, name }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
@@ -109,5 +110,5 @@ export function Orb({ phase, levelRef }: Props) {
     };
   }, [levelRef]);
 
-  return <canvas ref={canvasRef} role="img" aria-label={`Ella is ${phase}`} />;
+  return <canvas ref={canvasRef} role="img" aria-label={`${name} is ${phase}`} />;
 }

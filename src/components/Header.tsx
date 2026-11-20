@@ -1,4 +1,4 @@
-import { ActionIcon, Indicator, Menu, Tooltip } from "@mantine/core";
+import { Indicator, Menu, Tooltip, UnstyledButton } from "@mantine/core";
 import {
   IconAdjustmentsHorizontal,
   IconCalendarEvent,
@@ -11,7 +11,7 @@ import {
   IconMicrophone,
   IconMicrophoneOff,
   IconPlus,
-  IconSun,
+  IconSettings,
   IconVolume,
   IconVolumeOff,
 } from "@tabler/icons-react";
@@ -40,6 +40,8 @@ interface Props {
   controlOpen: boolean;
   openTodos: number;
   lang: string;
+  name: string;
+  claudeLabel: string;
   onToggleMic: () => void;
   onToggleSpeaker: () => void;
   onToggleAnnounceAll: () => void;
@@ -50,6 +52,7 @@ interface Props {
   onNewWorker: () => void;
   onNeedsYou: () => void;
   onLang: (lang: string) => void;
+  onSetup: () => void;
 }
 
 function Meter({ label, win, now }: { label: string; win: UsageWindow | null; now: number }) {
@@ -65,12 +68,14 @@ function Meter({ label, win, now }: { label: string; win: UsageWindow | null; no
   );
 }
 
-function IconButton({ label, className, onClick, children }: { label: string; className?: string; onClick: () => void; children: ReactNode }) {
+/** Icon with a short visible caption underneath; the tooltip keeps the full description. */
+function IconButton({ label, text, className, onClick, children }: { label: string; text: string; className?: string; onClick?: () => void; children: ReactNode }) {
   return (
     <Tooltip label={label}>
-      <ActionIcon variant="transparent" className={`icon-btn ${className ?? ""}`} aria-label={label} onClick={onClick}>
+      <UnstyledButton className={`hdr-btn ${className ?? ""}`} aria-label={label} onClick={onClick}>
         {children}
-      </ActionIcon>
+        <span className="hdr-label">{text}</span>
+      </UnstyledButton>
     </Tooltip>
   );
 }
@@ -81,7 +86,7 @@ export function Header(p: Props) {
     <header className="header">
       <div className="brand">
         <IconFocus2 size={20} stroke={1.6} aria-hidden />
-        <span>Ella</span>
+        <span>{p.name}</span>
       </div>
 
       <Tooltip label={p.vpn ? "A VPN / tunnel adapter is up" : "No VPN adapter detected"}>
@@ -104,39 +109,38 @@ export function Header(p: Props) {
       <Meter label="WEEK" win={p.usage.week} now={p.now} />
       <span className="clock">{clock}</span>
 
-      <IconButton label={p.micOn ? "Mute microphone" : "Unmute microphone"} className={p.micOn ? "on" : "alert"} onClick={p.onToggleMic}>
+      <IconButton label={p.micOn ? "Mute microphone" : "Unmute microphone"} text="Mic" className={p.micOn ? "on" : "alert"} onClick={p.onToggleMic}>
         {p.micOn ? <IconMicrophone size={16} /> : <IconMicrophoneOff size={16} />}
       </IconButton>
-      <IconButton label={p.speakerOn ? "Mute Ella's voice" : "Let Ella speak"} className={p.speakerOn ? "on" : ""} onClick={p.onToggleSpeaker}>
+      <IconButton label={p.speakerOn ? `Mute ${p.name}'s voice` : `Let ${p.name} speak`} text="Voice" className={p.speakerOn ? "on" : ""} onClick={p.onToggleSpeaker}>
         {p.speakerOn ? <IconVolume size={16} /> : <IconVolumeOff size={16} />}
       </IconButton>
-      <IconButton label={p.announceAll ? "Announcing every worker that finishes" : "Announcing only the worker you talk to"} className={p.announceAll ? "on" : ""} onClick={p.onToggleAnnounceAll}>
+      <IconButton label={p.announceAll ? "Announcing every worker that finishes" : "Announcing only the worker you talk to"} text="Announce" className={p.announceAll ? "on" : ""} onClick={p.onToggleAnnounceAll}>
         <IconHeadphones size={16} />
       </IconButton>
-      <IconButton label="Meetings" onClick={p.onMeetings}>
+      <IconButton label="Meetings" text="Meetings" onClick={p.onMeetings}>
         <IconCalendarEvent size={16} />
       </IconButton>
-      <IconButton label={`To-do · ${p.openTodos} open`} onClick={p.onTodos}>
-        <Indicator disabled={p.openTodos === 0} label={p.openTodos} size={14} color="yellow" offset={-2}>
+      <IconButton label={`To-do · ${p.openTodos} open`} text="To-do" onClick={p.onTodos}>
+        <Indicator inline disabled={p.openTodos === 0} label={p.openTodos} size={14} color="yellow" offset={-2} style={{ display: "flex" }}>
           <IconChecklist size={16} />
         </Indicator>
       </IconButton>
-      <IconButton label={p.controlOpen ? "Back to the HUD" : "Control center: projects, config, Docker, tasks"} className={p.controlOpen ? "on" : ""} onClick={p.onToggleControl}>
+      <IconButton label={p.controlOpen ? "Back to the HUD" : "Control center: projects, config, Docker, tasks"} text={p.controlOpen ? "HUD" : "Control"} className={p.controlOpen ? "on" : ""} onClick={p.onToggleControl}>
         <IconAdjustmentsHorizontal size={16} />
       </IconButton>
-      <IconButton label="New worker" onClick={p.onNewWorker}>
+      <IconButton label="New worker" text="New" onClick={p.onNewWorker}>
         <IconPlus size={16} />
       </IconButton>
-      <IconButton label={p.rightOpen ? "Hide side panel" : "Show side panel"} className={p.rightOpen ? "" : "on"} onClick={p.onToggleRight}>
+      <IconButton label={p.rightOpen ? "Hide side panel" : "Show side panel"} text="Panel" className={p.rightOpen ? "" : "on"} onClick={p.onToggleRight}>
         <IconLayoutSidebarRight size={16} />
       </IconButton>
       <Menu position="bottom-end" withinPortal>
         <Menu.Target>
-          <Tooltip label="Voice language">
-            <ActionIcon variant="transparent" className="icon-btn" aria-label="Voice language">
-              <IconSun size={16} />
-            </ActionIcon>
-          </Tooltip>
+          <UnstyledButton className="hdr-btn" aria-label="Voice language">
+            <IconLanguage size={16} />
+            <span className="hdr-label">Language</span>
+          </UnstyledButton>
         </Menu.Target>
         <Menu.Dropdown>
           <Menu.Label>Voice language</Menu.Label>
@@ -147,7 +151,10 @@ export function Header(p: Props) {
           ))}
         </Menu.Dropdown>
       </Menu>
-      <IconButton label="Full screen" onClick={() => void (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen())}>
+      <IconButton label={`Which Claude: ${p.claudeLabel} — switch binary, profile or name`} text="Claude" onClick={p.onSetup}>
+        <IconSettings size={16} />
+      </IconButton>
+      <IconButton label="Full screen" text="Full" onClick={() => void (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen())}>
         <IconMaximize size={16} />
       </IconButton>
     </header>

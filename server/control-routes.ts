@@ -4,6 +4,7 @@ import { globalConfig, listPlugins, projectConfig, setPlugin, setProjectMcp, vie
 import { containerAction, dockerReport } from "./docker.ts";
 import { run } from "./exec.ts";
 import { HttpError } from "./http-error.ts";
+import { claudeBin } from "./instance.ts";
 import { listProjects, projectEntry, projectSessions, requireProject } from "./projects.ts";
 import { claudeSessions, externalProcesses, stopExternal, taskPresets, type TaskManager } from "./tasks.ts";
 
@@ -26,7 +27,7 @@ const query = (req: IncomingMessage, key: string) => new URL(req.url ?? "/", "ht
 /** Empty project = global scope; otherwise it must be a project Claude Code knows. */
 const optionalProject = async (raw: unknown): Promise<ProjectItem | null> => (raw ? requireProject(raw) : null);
 
-export function controlRoutes(claudeBin: string, tasks: TaskManager, body: Body): Route[] {
+export function controlRoutes(tasks: TaskManager, body: Body): Route[] {
   const ID = "([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})";
   return [
     ["GET", /^\/api\/projects$/, () => listProjects()],
@@ -45,10 +46,10 @@ export function controlRoutes(claudeBin: string, tasks: TaskManager, body: Body)
       await setProjectMcp(await requireProject(b.project), b.name, b.enabled);
       return { ok: true };
     }],
-    ["GET", /^\/api\/plugins$/, () => listPlugins(claudeBin)],
+    ["GET", /^\/api\/plugins$/, () => listPlugins()],
     ["POST", /^\/api\/plugins$/, async (req) => {
       const b = await body(req);
-      return { output: await setPlugin(claudeBin, b.id, b.enabled) };
+      return { output: await setPlugin(b.id, b.enabled) };
     }],
 
     ["GET", /^\/api\/docker$/, async () => dockerReport(await listProjects())],
@@ -66,7 +67,7 @@ export function controlRoutes(claudeBin: string, tasks: TaskManager, body: Body)
     ["POST", new RegExp(`^/api/tasks/${ID}/stop$`), (_req, [id]) => tasks.stop(id ?? "")],
     ["DELETE", new RegExp(`^/api/tasks/${ID}$`), (_req, [id]) => tasks.remove(id ?? "")],
 
-    ["GET", /^\/api\/claude-sessions$/, () => claudeSessions(claudeBin)],
+    ["GET", /^\/api\/claude-sessions$/, () => claudeSessions()],
     ["GET", /^\/api\/processes$/, async (req) => externalProcesses((await optionalProject(query(req, "project")))?.path ?? null)],
     ["POST", /^\/api\/processes\/stop$/, async (req) => {
       const b = await body(req);
@@ -84,7 +85,7 @@ export function controlRoutes(claudeBin: string, tasks: TaskManager, body: Body)
       if (p && b.command === "mcp-list" && (await projectEntry(p.path)).hasTrustDialogAccepted !== true) {
         throw new HttpError(403, "This folder isn't trusted in Claude Code yet — open it in Claude Code once and accept the trust prompt");
       }
-      const r = await run(claudeBin, cmd.args, { cwd: p?.exists ? p.path : undefined, timeoutMs: cmd.timeoutMs });
+      const r = await run(claudeBin(), cmd.args, { cwd: p?.exists ? p.path : undefined, timeoutMs: cmd.timeoutMs });
       return { command: cmd.label, code: r.code, output: `${r.stdout}${r.stderr ? `\n${r.stderr}` : ""}`.trim(), timedOut: r.timedOut };
     }],
   ];

@@ -7,6 +7,7 @@ import { createInterface } from "node:readline";
 import type { ClaudeSessionProc, ExternalProc, ProjectItem, TaskPreset, TaskView } from "../shared/types.ts";
 import { killTree, run, spawnTool } from "./exec.ts";
 import { HttpError } from "./http-error.ts";
+import { claudeBin } from "./instance.ts";
 import { log } from "./log.ts";
 
 const MAX_LINES = 500;
@@ -173,8 +174,8 @@ export class TaskManager extends EventEmitter {
 }
 
 /** Live Claude Code sessions (interactive and background) from the official CLI. */
-export async function claudeSessions(claudeBin: string): Promise<ClaudeSessionProc[]> {
-  const r = await run(claudeBin, ["agents", "--json"], { timeoutMs: 30_000 });
+export async function claudeSessions(): Promise<ClaudeSessionProc[]> {
+  const r = await run(claudeBin(), ["agents", "--json"], { timeoutMs: 30_000 });
   if (r.code !== 0) throw new HttpError(502, (r.stderr || "claude agents failed").trim().slice(0, 300));
   try {
     const list = JSON.parse(r.stdout) as Partial<ClaudeSessionProc>[];

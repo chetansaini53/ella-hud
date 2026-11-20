@@ -1,13 +1,10 @@
 import { createReadStream } from "node:fs";
 import { open, readdir, stat } from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import type { EvolutionItem, HistoryItem } from "../shared/types.ts";
+import { onProfileChange, projectsDir } from "./instance.ts";
 import { log } from "./log.ts";
 
-/** Same lookup Claude Code uses: $CLAUDE_CONFIG_DIR, else ~/.claude. */
-export const CLAUDE_DIR = process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude");
-export const PROJECTS_DIR = path.join(CLAUDE_DIR, "projects");
 const HISTORY_LIMIT = 150;
 const EVOLUTION_LIMIT = 60;
 const SCAN_CONCURRENCY = 4;
@@ -32,6 +29,10 @@ interface ScanState {
 
 const states = new Map<string, ScanState>();
 let inflight: Promise<HistoryItem[]> | null = null;
+onProfileChange(() => {
+  states.clear();
+  inflight = null;
+});
 
 /** Recent Claude Code sessions, newest first. Concurrent callers share one scan. */
 export function listHistory(): Promise<HistoryItem[]> {
@@ -138,10 +139,10 @@ export async function listEvolution(): Promise<EvolutionItem[]> {
 }
 
 async function listFiles(entries: (projectDir: string) => Promise<string[]>, ext: string): Promise<FileRef[]> {
-  const projects = await readdirSafe(PROJECTS_DIR);
+  const projects = await readdirSafe(projectsDir());
   const nested = await Promise.all(
     projects.map(async (p) => {
-      const dir = path.join(PROJECTS_DIR, p);
+      const dir = path.join(projectsDir(), p);
       const names = (await entries(dir)).filter((n) => n.endsWith(ext));
       const refs = await Promise.all(
         names.map(async (n) => {

@@ -16,6 +16,7 @@ import {
   type WorkerView,
 } from "../shared/types.ts";
 import { HttpError } from "./http-error.ts";
+import { assistantName, claudeBin, claudeDir, isDefaultClaudeDir } from "./instance.ts";
 import { log } from "./log.ts";
 
 const PERMISSION_MODES = ["default", "acceptEdits", "plan", "bypassPermissions"] as const;
@@ -99,6 +100,9 @@ interface Internal {
   view: WorkerView;
   proc: ChildProcessWithoutNullStreams | null;
   modelAlias: Model;
+  /** The Claude binary + profile this worker was born with; a later profile switch must not move its session. */
+  bin: string;
+  configDir: string;
   forkFrom: string | null;
   stderrTail: string;
 }
@@ -156,6 +160,8 @@ export class WorkerManager extends EventEmitter {
       },
       proc: null,
       modelAlias: model,
+      bin: claudeBin(),
+      configDir: claudeDir(),
       forkFrom: resume,
       stderrTail: "",
     };
@@ -175,8 +181,8 @@ export class WorkerManager extends EventEmitter {
 
   send(id: string, text: unknown): void {
     const w = this.#get(id);
-    if (w.view.status === "cooking" || w.view.status === "starting") {
-      throw new HttpError(409, "Worker is still cooking — wait for it or stop it");
+    if (w.view.status === "working" || w.view.status === "starting") {
+      throw new HttpError(409, "Worker is still working — wait for it or stop it");
     }
     const clean = validateText(text, "text");
     this.#assertCapacity();
@@ -186,7 +192,7 @@ export class WorkerManager extends EventEmitter {
   /** Live processes = busy workers: a worker's process ends after each turn and is resumed on the next ask. */
   #assertCapacity(): void {
     if ([...this.#workers.values()].filter((x) => x.proc).length >= this.#settings.maxWorkers) {
-      throw new HttpError(429, `Max ${this.#settings.maxWorkers} workers cooking at once — wait for one or stop it`);
+      throw new HttpError(429, `Max ${this.#settings.maxWorkers} workers working at once — wait for one or stop it`);
     }
   }
 
@@ -211,7 +217,7 @@ export class WorkerManager extends EventEmitter {
   #sendTo(w: Internal, text: string): void {
     if (!w.proc) this.#spawn(w);
     this.#push(w, "user", text);
-    this.#set(w, { status: w.view.sessionId ? "cooking" : "starting", activity: null });
+    this.#set(w, { status: w.view.sessionId ? "working" : "starting", activity: null });
     const line = JSON.stringify({ type: "user", message: { role: "user", content: text }, parent_tool_use_id: null, session_id: w.view.sessionId ?? "" });
     w.proc?.stdin.write(`${line}\n`);
   }
@@ -228,9 +234,12 @@ export class WorkerManager extends EventEmitter {
     ];
     if (w.view.sessionId) args.push("--resume", w.view.sessionId);
     else if (w.forkFrom) args.push("--resume", w.forkFrom, "--fork-session");
-    else args.push("--name", `Ella: ${w.view.title}`.slice(0, 80));
+    else args.push("--name", `${assistantName()}: ${w.view.title}`.slice(0, 80));
 
-    const proc = spawn(this.#settings.claudeBin, args, { cwd: w.view.cwd, windowsHide: true, env: process.env, detached: process.platform !== "win32" });
+    const env = { ...process.env };
+    if (isDefaultClaudeDir(w.configDir)) delete env.CLAUDE_CONFIG_DIR;
+    else env.CLAUDE_CONFIG_DIR = w.configDir;
+    const proc = spawn(w.bin, args, { cwd: w.view.cwd, windowsHide: true, env, detached: process.platform !== "win32" });
     w.proc = proc;
     w.stderrTail = "";
     log("info", "worker spawned", { id: w.view.id, pid: proc.pid, cwd: w.view.cwd });
@@ -258,7 +267,7 @@ export class WorkerManager extends EventEmitter {
     proc.on("exit", (code) => {
       if (w.proc !== proc) return;
       w.proc = null;
-      if (w.view.status === "cooking" || w.view.status === "starting") {
+      if (w.view.status === "working" || w.view.status === "starting") {
         const tail = clip(w.stderrTail, 400);
         this.#set(w, { status: "error", activity: null, subagents: [] });
         this.#push(w, "system", `Worker exited (code ${code ?? "?"})${tail ? `: ${tail}` : ""}`);
@@ -274,7 +283,7 @@ export class WorkerManager extends EventEmitter {
           this.#set(w, {
             sessionId: typeof ev.session_id === "string" ? ev.session_id : w.view.sessionId,
             model: typeof ev.model === "string" ? prettyModel(ev.model) : w.view.model,
-            status: "cooking",
+            status: "working",
           });
           w.forkFrom = null;
         }

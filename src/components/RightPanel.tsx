@@ -34,7 +34,7 @@ export function RightPanel(p: Props) {
     }
   };
 
-  const busy = p.worker?.status === "cooking" || p.worker?.status === "starting";
+  const busy = p.worker?.status === "working" || p.worker?.status === "starting";
   const placeholder = p.mode === "collect" ? "Collecting asks — speak or type, then Send them all" : p.listening ? "Or type here. Listening pauses while you type." : "Type here, or unmute the mic to talk";
 
   return (

@@ -5,7 +5,7 @@ import type { EvolutionItem, HistoryItem, WorkerView } from "../../shared/types.
 import { ago, hhmm } from "../format.ts";
 import { rankMatches } from "../search.ts";
 
-export type SideTab = "active" | "cooked" | "evolution";
+export type SideTab = "active" | "done" | "evolution";
 
 interface Row {
   id: string;
@@ -62,7 +62,7 @@ export function Sidebar(p: Props) {
     if (p.tab === "active") {
       return p.workers.map((w) => ({ id: w.id, title: w.title, group: workerProject(w), meta: `${hhmm(w.updatedAt)} · ${w.status}`, at: w.updatedAt }));
     }
-    if (p.tab === "cooked") {
+    if (p.tab === "done") {
       return p.history.data?.map((h) => ({ id: h.id, title: h.title, group: h.project, meta: `${hhmm(h.at)} · ${h.asks} asks`, at: h.at })) ?? null;
     }
     return p.evolution.data?.map((e) => ({ id: e.id, title: e.title, group: e.project, meta: hhmm(e.at), at: e.at, tooltip: e.detail })) ?? null;
@@ -83,12 +83,12 @@ export function Sidebar(p: Props) {
   }, [rows, query]);
   const groups = useMemo(() => (filtered ? groupRows(filtered) : null), [filtered]);
 
-  const error = p.tab === "cooked" ? p.history.error : p.tab === "evolution" ? p.evolution.error : null;
-  const counts: Record<SideTab, number | string> = { active: p.workers.length, cooked: p.history.data?.length ?? "…", evolution: p.evolution.data?.length ?? "…" };
+  const error = p.tab === "done" ? p.history.error : p.tab === "evolution" ? p.evolution.error : null;
+  const counts: Record<SideTab, number | string> = { active: p.workers.length, done: p.history.data?.length ?? "…", evolution: p.evolution.data?.length ?? "…" };
 
   const openRow = (id: string) => {
     if (p.tab === "active") p.onPickWorker(id);
-    else if (p.tab === "cooked") {
+    else if (p.tab === "done") {
       const item = p.history.data?.find((h) => h.id === id);
       if (item) p.onPickHistory(item);
     }
@@ -112,7 +112,7 @@ export function Sidebar(p: Props) {
   return (
     <aside className="left" aria-label="Sessions">
       <div className="tabs" role="tablist">
-        {(["active", "cooked", "evolution"] as const).map((t) => (
+        {(["active", "done", "evolution"] as const).map((t) => (
           <button key={t} type="button" role="tab" aria-selected={p.tab === t} className={`tab ${p.tab === t ? "active" : ""}`} onClick={() => p.onTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
             <span className="n">{counts[t]}</span>
@@ -194,7 +194,7 @@ export function Sidebar(p: Props) {
                     className={`item ${p.tab === "active" && r.id === p.selectedWorkerId ? "selected" : ""}`}
                     onClick={() => openRow(r.id)}
                     disabled={p.tab === "evolution"}
-                    title={r.tooltip ?? (p.tab === "cooked" ? "Open as a worker (forks the session — the original stays untouched)" : undefined)}
+                    title={r.tooltip ?? (p.tab === "done" ? "Open as a worker (forks the session — the original stays untouched)" : undefined)}
                   >
                     <div className="item-title">{r.title}</div>
                     <div className="item-meta">{r.meta}</div>

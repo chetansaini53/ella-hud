@@ -2,18 +2,19 @@ import { Notification } from "@mantine/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EvolutionItem, HistoryItem, TodoItem, WorkerView } from "../shared/types.ts";
 import { api, useHud } from "./api.ts";
-import { CookingNow } from "./components/CookingNow.tsx";
+import { WorkingOn } from "./components/CookingNow.tsx";
 import { ControlCenter } from "./components/control/ControlCenter.tsx";
 import { Header } from "./components/Header.tsx";
 import { NewWorkerModal, type NewWorkerInput } from "./components/NewWorkerModal.tsx";
 import { MeetingsModal, TodoModal } from "./components/PlannerModals.tsx";
+import { InstanceModal, type Detected } from "./components/InstanceModal.tsx";
 import { Orb, type OrbPhase } from "./components/Orb.tsx";
 import { RightPanel, type InputMode } from "./components/RightPanel.tsx";
 import { Sidebar, type Loadable, type SideTab } from "./components/Sidebar.tsx";
 import { useVoice } from "./voice.ts";
 
 const LANG_KEY = "ella.lang";
-const BUSY = new Set<WorkerView["status"]>(["cooking", "starting"]);
+const BUSY = new Set<WorkerView["status"]>(["working", "starting"]);
 
 function readLang(): string {
   try {
@@ -31,7 +32,7 @@ export function App() {
   const hud = useHud();
   const [now, setNow] = useState(Date.now());
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tab, setTab] = useState<SideTab>("cooked");
+  const [tab, setTab] = useState<SideTab>("done");
   const [history, setHistory] = useState<Loadable<HistoryItem>>({ data: null, error: null });
   const [evolution, setEvolution] = useState<Loadable<EvolutionItem>>({ data: null, error: null });
   const [todos, setTodos] = useState<TodoItem[] | null>(null);
@@ -41,6 +42,24 @@ export function App() {
   const [rightOpen, setRightOpen] = useState(true);
   const [view, setView] = useState<"hud" | "control">("hud");
   const [planner, setPlanner] = useState<"meetings" | "todo" | null>(null);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const name = hud.instance?.name ?? "Ella";
+  const claudeLabel = hud.instance ? `${hud.instance.configDir.split(/[\/]/).pop()} · ${hud.instance.bin.split(/[\/]/).pop()}` : "…";
+
+  useEffect(() => {
+    document.title = name;
+  }, [name]);
+
+  // First run with more than one Claude on the machine: ask which one before anything else.
+  const askedSetup = useRef(false);
+  useEffect(() => {
+    if (!hud.instance || hud.instance.saved || askedSetup.current) return;
+    askedSetup.current = true;
+    api<Detected>("GET", "/api/instance/detect").then(
+      (d) => (d.binaries.length > 1 || d.profiles.length > 1) && setSetupOpen(true),
+      () => undefined,
+    );
+  }, [hud.instance]);
   const [lang, setLang] = useState(readLang);
   const [mode, setMode] = useState<InputMode>("talk");
   const [draft, setDraft] = useState("");
@@ -185,9 +204,9 @@ export function App() {
   };
 
   const needsYou = hud.workers.filter((w) => w.status === "needs-you" || w.status === "error");
-  const anyCooking = hud.workers.some((w) => BUSY.has(w.status));
-  const orbPhase: OrbPhase = voice.phase === "speaking" ? "speaking" : voice.phase === "listening" ? "listening" : anyCooking ? "thinking" : "idle";
-  const phaseLabel = { speaking: "Speaking", listening: "Listening", thinking: "Cooking", idle: "Standing by" }[orbPhase];
+  const anyWorking = hud.workers.some((w) => BUSY.has(w.status));
+  const orbPhase: OrbPhase = voice.phase === "speaking" ? "speaking" : voice.phase === "listening" ? "listening" : anyWorking ? "thinking" : "idle";
+  const phaseLabel = { speaking: "Speaking", listening: "Listening", thinking: "Working", idle: "Standing by" }[orbPhase];
   const caption =
     (voice.phase === "speaking" && voice.spoken) ||
     (voice.phase === "listening" && voice.interim) ||
@@ -215,6 +234,9 @@ export function App() {
         controlOpen={view === "control"}
         openTodos={todos?.filter((t) => !t.done).length ?? 0}
         lang={lang}
+        name={name}
+        claudeLabel={claudeLabel}
+        onSetup={() => setSetupOpen(true)}
         onToggleMic={() => {
           voice.clearError();
           setMicOn((m) => !m);
@@ -235,7 +257,7 @@ export function App() {
 
       {view === "control" && <ControlCenter now={now} tasks={hud.tasks} onOpenWorker={(h) => void openHistory(h)} onError={setToast} />}
 
-      {view === "hud" && <CookingNow workers={hud.workers} selectedId={selectedId} talkingId={talkingId} now={now} onSelect={setSelectedId} onNewWorker={() => setModal({ opened: true, task: "" })} />}
+      {view === "hud" && <WorkingOn workers={hud.workers} selectedId={selectedId} talkingId={talkingId} now={now} onSelect={setSelectedId} onNewWorker={() => setModal({ opened: true, task: "" })} />}
 
       {view === "hud" && <div className={`hud-body ${rightOpen ? "" : "no-right"}`}>
         <Sidebar
@@ -262,7 +284,7 @@ export function App() {
             )}
           </div>
           <div className="orb-wrap">
-            <Orb phase={orbPhase} levelRef={voice.levelRef} />
+            <Orb phase={orbPhase} levelRef={voice.levelRef} name={name} />
           </div>
           <div className="caption-zone" aria-live="polite">
             <div className="phase">{phaseLabel}</div>
@@ -287,6 +309,7 @@ export function App() {
         )}
       </div>}
 
+      <InstanceModal opened={setupOpen} instance={hud.instance} onClose={() => setSetupOpen(false)} />
       <TodoModal opened={planner === "todo"} now={now} todos={todos} onClose={() => setPlanner(null)} onAdd={addTodo} onToggle={toggleTodo} />
       <MeetingsModal opened={planner === "meetings"} onClose={() => setPlanner(null)} />
 
@@ -301,7 +324,7 @@ export function App() {
       />
 
       {toast && (
-        <Notification className="toast" color="red" onClose={() => setToast(null)} title="Ella">
+        <Notification className="toast" color="red" onClose={() => setToast(null)} title={name}>
           {toast}
         </Notification>
       )}

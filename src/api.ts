@@ -1,5 +1,5 @@
 import { useEffect, useReducer } from "react";
-import type { AppConfig, ServerEvent, TaskView, Usage, WorkerView } from "../shared/types.ts";
+import type { AppConfig, InstanceInfo, ServerEvent, TaskView, Usage, WorkerView } from "../shared/types.ts";
 
 export async function api<T>(method: string, url: string, body?: unknown): Promise<T> {
   let res: Response;
@@ -11,7 +11,7 @@ export async function api<T>(method: string, url: string, body?: unknown): Promi
       signal: AbortSignal.timeout(15_000),
     });
   } catch {
-    throw new Error("Ella server is not reachable — is it running?");
+    throw new Error("The HUD server is not reachable — is it running?");
   }
   const data = (await res.json().catch(() => ({}))) as { error?: string };
   if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
@@ -25,19 +25,20 @@ export interface HudState {
   vpn: boolean;
   config: AppConfig | null;
   tasks: TaskView[];
+  instance: InstanceInfo | null;
 }
 
 type Action = ServerEvent | { type: "disconnected" };
 
 const MAX_MESSAGES = 200;
 
-const initial: HudState = { connected: false, workers: [], usage: { session: null, week: null }, vpn: false, config: null, tasks: [] };
+const initial: HudState = { connected: false, workers: [], usage: { session: null, week: null }, vpn: false, config: null, tasks: [], instance: null };
 const MAX_TASK_LINES = 500;
 
 function reducer(state: HudState, ev: Action): HudState {
   switch (ev.type) {
     case "snapshot":
-      return { connected: true, workers: ev.workers, usage: ev.usage, vpn: ev.vpn, config: ev.config, tasks: ev.tasks };
+      return { connected: true, workers: ev.workers, usage: ev.usage, vpn: ev.vpn, config: ev.config, tasks: ev.tasks, instance: ev.instance };
     case "worker": {
       const exists = state.workers.some((w) => w.id === ev.worker.id);
       return {
@@ -67,6 +68,8 @@ function reducer(state: HudState, ev: Action): HudState {
       return { ...state, tasks: state.tasks.map((t) => (t.id === ev.id ? { ...t, lines: [...t.lines, ...ev.lines].slice(-MAX_TASK_LINES) } : t)) };
     case "task-removed":
       return { ...state, tasks: state.tasks.filter((t) => t.id !== ev.id) };
+    case "instance":
+      return { ...state, instance: ev.instance };
     case "disconnected":
       return { ...state, connected: false };
   }

@@ -1,5 +1,5 @@
 import { Alert, Autocomplete, Button, Group, Modal, SegmentedControl, Stack, Text, Textarea } from "@mantine/core";
-import { IconAlertTriangle, IconFlame } from "@tabler/icons-react";
+import { IconAlertTriangle, IconPlayerPlay } from "@tabler/icons-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { EFFORTS, MODELS, type Effort, type Model } from "../../shared/types.ts";
 
@@ -53,7 +53,7 @@ export function NewWorkerModal({ opened, initialTask, defaultCwd, recentCwds, pe
     <Modal opened={opened} onClose={onClose} title={<Text fw={700} style={{ letterSpacing: "0.1em" }}>NEW WORKER</Text>} size="lg">
       <form onSubmit={submit}>
         <Stack gap="sm" className="hud-input">
-          <Textarea label="Task" description="What should this worker cook?" required autosize minRows={3} maxRows={10} maxLength={20000} value={task} onChange={(e) => setTask(e.currentTarget.value)} data-autofocus />
+          <Textarea label="Task" description="What should this worker do?" required autosize minRows={3} maxRows={10} maxLength={20000} value={task} onChange={(e) => setTask(e.currentTarget.value)} data-autofocus />
           <Autocomplete label="Folder" description="Absolute path inside WORKSPACE_ROOTS" required data={recentCwds} value={cwd} onChange={setCwd} limit={12} />
           <Group grow align="flex-start">
             <Stack gap={4}>
@@ -77,8 +77,8 @@ export function NewWorkerModal({ opened, initialTask, defaultCwd, recentCwds, pe
             <Button variant="subtle" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" loading={busy} leftSection={<IconFlame size={16} />} disabled={!task.trim() || !cwd.trim()}>
-              Start cooking
+            <Button type="submit" loading={busy} leftSection={<IconPlayerPlay size={16} />} disabled={!task.trim() || !cwd.trim()}>
+              Start working
             </Button>
           </Group>
         </Stack>

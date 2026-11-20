@@ -11,7 +11,7 @@ const samePath = (a: string, b: string) => a.toLowerCase().replace(/[\\/]+$/, ""
 
 export function SessionsPanel({ project, now, onOpenWorker }: { project: ProjectItem | null; now: number; onOpenWorker: (item: HistoryItem) => void }) {
   const live = useFetch<ClaudeSessionProc[]>("/api/claude-sessions");
-  const sessions = useFetch<(HistoryItem & { ella: boolean })[]>(project ? `/api/projects/sessions?${projectQuery(project.path)}` : null);
+  const sessions = useFetch<(HistoryItem & { fromHud: boolean })[]>(project ? `/api/projects/sessions?${projectQuery(project.path)}` : null);
 
   return (
     <>
@@ -50,7 +50,7 @@ export function SessionsPanel({ project, now, onOpenWorker }: { project: Project
                   {d.map((s) => (
                     <tr key={s.id}>
                       <td>
-                        {s.title} {s.ella && <Badge size="xs" variant="outline" ml={6}>Ella</Badge>}
+                        {s.title} {s.fromHud && <Badge size="xs" variant="outline" ml={6}>HUD</Badge>}
                         <div className="mono dim">{s.id}</div>
                       </td>
                       <td>{s.asks}</td>

@@ -2,7 +2,8 @@ import { copyFile, lstat, mkdir, open, readFile, rename, stat, writeFile } from 
 import path from "node:path";
 import type { ClaudeConfigView, ConfigFile, McpServerInfo, NamedItem, PermissionSet, PluginInfo, ProjectItem } from "../shared/types.ts";
 import { run } from "./exec.ts";
-import { CLAUDE_DIR, readdirSafe } from "./history.ts";
+import { readdirSafe } from "./history.ts";
+import { claudeBin, claudeDir } from "./instance.ts";
 import { HttpError } from "./http-error.ts";
 import { projectEntry, readClaudeJson } from "./projects.ts";
 
@@ -154,23 +155,23 @@ function mcpList(servers: unknown, scope: McpServerInfo["scope"], enabledFor: (n
   }));
 }
 
-const userSettings = () => Promise.all([readJson(path.join(CLAUDE_DIR, "settings.json")), readJson(path.join(CLAUDE_DIR, "settings.local.json"))]);
+const userSettings = () => Promise.all([readJson(path.join(claudeDir(), "settings.json")), readJson(path.join(claudeDir(), "settings.local.json"))]);
 
 export async function globalConfig(): Promise<ClaudeConfigView> {
   const [settings, local] = await userSettings();
   const claudeJson = await readClaudeJson();
   const fileDefs: [string, string][] = [
-    [path.join(CLAUDE_DIR, "CLAUDE.md"), "Global CLAUDE.md (your profile)"],
-    [path.join(CLAUDE_DIR, "settings.json"), "User settings"],
-    [path.join(CLAUDE_DIR, "settings.local.json"), "User local settings"],
+    [path.join(claudeDir(), "CLAUDE.md"), "Global CLAUDE.md (your profile)"],
+    [path.join(claudeDir(), "settings.json"), "User settings"],
+    [path.join(claudeDir(), "settings.local.json"), "User local settings"],
   ];
   return {
     scope: "global",
     files: await filesOf(fileDefs),
-    skills: await markdownItems(path.join(CLAUDE_DIR, "skills"), "user", true),
-    agents: await markdownItems(path.join(CLAUDE_DIR, "agents"), "user", false),
-    commands: await markdownItems(path.join(CLAUDE_DIR, "commands"), "user", false),
-    rules: await markdownItems(path.join(CLAUDE_DIR, "rules"), "user", false),
+    skills: await markdownItems(path.join(claudeDir(), "skills"), "user", true),
+    agents: await markdownItems(path.join(claudeDir(), "agents"), "user", false),
+    commands: await markdownItems(path.join(claudeDir(), "commands"), "user", false),
+    rules: await markdownItems(path.join(claudeDir(), "rules"), "user", false),
     hooks: [...hooksOf(settings, "settings.json"), ...hooksOf(local, "settings.local.json")],
     mcp: mcpList(claudeJson.mcpServers, "user", () => true, false),
     permissions: [permissionsOf(settings, "settings.json"), permissionsOf(local, "settings.local.json")].filter((x): x is PermissionSet => x !== null),
@@ -291,8 +292,8 @@ export async function setProjectMcp(project: ProjectItem, name: unknown, enabled
   await rename(`${file}.tmp`, file);
 }
 
-export async function listPlugins(claudeBin: string): Promise<PluginInfo[]> {
-  const r = await run(claudeBin, ["plugin", "list", "--json"], { timeoutMs: 30_000 });
+export async function listPlugins(): Promise<PluginInfo[]> {
+  const r = await run(claudeBin(), ["plugin", "list", "--json"], { timeoutMs: 30_000 });
   if (r.code !== 0) throw new HttpError(502, clip(r.stderr || "claude plugin list failed", 300));
   try {
     const list = JSON.parse(r.stdout) as { id: string; version?: string; scope?: string; enabled?: boolean }[];
@@ -303,10 +304,10 @@ export async function listPlugins(claudeBin: string): Promise<PluginInfo[]> {
 }
 
 /** Uses the official CLI so Claude Code itself owns the settings write. User scope only (project/local would write to Ella's own folder). */
-export async function setPlugin(claudeBin: string, id: unknown, enabled: unknown): Promise<string> {
+export async function setPlugin(id: unknown, enabled: unknown): Promise<string> {
   if (typeof id !== "string" || !NAME.test(id) || id.startsWith("-")) throw new HttpError(400, "Invalid plugin id");
   if (typeof enabled !== "boolean") throw new HttpError(400, "enabled must be true or false");
-  const r = await run(claudeBin, ["plugin", enabled ? "enable" : "disable", id, "--scope", "user"], { timeoutMs: 60_000 });
+  const r = await run(claudeBin(), ["plugin", enabled ? "enable" : "disable", id, "--scope", "user"], { timeoutMs: 60_000 });
   if (r.code !== 0) throw new HttpError(502, clip(r.stderr || r.stdout || "claude plugin command failed", 400));
   return r.stdout.trim();
 }

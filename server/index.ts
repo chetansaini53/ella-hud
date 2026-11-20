@@ -8,6 +8,7 @@ import { controlRoutes } from "./control-routes.ts";
 import { guardConfig, guardRequest, resolveStatic } from "./guard.ts";
 import { listEvolution, listHistory } from "./history.ts";
 import { HttpError } from "./http-error.ts";
+import { detect, initInstance, instanceInfo, onProfileChange, setInstance } from "./instance.ts";
 import { log } from "./log.ts";
 import { TaskManager } from "./tasks.ts";
 import { addTodo, listTodos, setTodoDone } from "./todos.ts";
@@ -25,6 +26,7 @@ const STREAMING = Symbol("streaming");
 const guard = guardConfig(PORT, process.argv.includes("--dev") ? 5173 : null);
 
 const settings = loadWorkerSettings(process.env);
+await initInstance(PORT, process.env.CLAUDE_BIN, settings.claudeBin);
 const config: AppConfig = {
   defaultCwd: process.env.DEFAULT_CWD ?? settings.workspaceRoots[0] ?? "",
   permissionMode: settings.permissionMode,
@@ -34,6 +36,11 @@ const workers = new WorkerManager(settings);
 const tasks = new TaskManager();
 const usage = new UsageTracker();
 const clients = new Set<ServerResponse>();
+// Another account has other limits: drop the old meters until its first reply.
+onProfileChange(() => {
+  usage.reset();
+  broadcast({ type: "usage", usage: usage.get() });
+});
 let vpn = vpnActive();
 
 function broadcast(event: ServerEvent): void {
@@ -68,12 +75,24 @@ const routes: [string, RegExp, Handler][] = [
   ["POST", new RegExp(`^/api/workers/${ID}/messages$`), async (req, _res, [id]) => workers.send(id ?? "", (await body(req)).text)],
   ["POST", new RegExp(`^/api/workers/${ID}/stop$`), (_req, _res, [id]) => workers.stop(id ?? "")],
   ["DELETE", new RegExp(`^/api/workers/${ID}$`), (_req, _res, [id]) => workers.remove(id ?? "")],
-  ...controlRoutes(settings.claudeBin, tasks, body).map(([m, re, fn]): [string, RegExp, Handler] => [m, re, (req, _res, params) => fn(req, params)]),
+  ["GET", /^\/api\/instance$/, () => instanceInfo(PORT)],
+  ["GET", /^\/api\/instance\/detect$/, () => detect()],
+  ["POST", /^\/api\/instance$/, async (req) => {
+    const assertIdle = () => {
+      if (workers.list().some((w) => w.status === "working" || w.status === "starting")) throw new HttpError(409, "A worker is still working — wait for it or stop it before switching Claude");
+    };
+    assertIdle();
+    await setInstance(await body(req), assertIdle);
+    const instance = instanceInfo(PORT);
+    broadcast({ type: "instance", instance });
+    return instance;
+  }],
+  ...controlRoutes(tasks, body).map(([m, re, fn]): [string, RegExp, Handler] => [m, re, (req, _res, params) => fn(req, params)]),
 ];
 
 function openStream(req: IncomingMessage, res: ServerResponse): typeof STREAMING {
   res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-store", Connection: "keep-alive" });
-  const snapshot: ServerEvent = { type: "snapshot", workers: workers.list(), usage: usage.get(), vpn, config, tasks: tasks.list() };
+  const snapshot: ServerEvent = { type: "snapshot", workers: workers.list(), usage: usage.get(), vpn, config, tasks: tasks.list(), instance: instanceInfo(PORT) };
   res.write(`data: ${JSON.stringify(snapshot)}\n\n`);
   clients.add(res);
   req.on("close", () => clients.delete(res));
@@ -171,7 +190,7 @@ server.on("error", (err: NodeJS.ErrnoException) => {
   log("error", err.code === "EADDRINUSE" ? `Port ${PORT} is busy — set PORT in .env` : "server error", { err: err.message });
   process.exit(1);
 });
-server.listen(PORT, HOST, () => log("info", "ella-hud listening", { url: `http://${HOST}:${PORT}`, roots: settings.workspaceRoots }));
+server.listen(PORT, HOST, () => log("info", "ella-hud listening", { url: `http://${HOST}:${PORT}`, roots: settings.workspaceRoots, claude: instanceInfo(PORT) }));
 
 function shutdown(): void {
   workers.shutdown();

@@ -8,9 +8,9 @@ A sci‑fi command center for **Claude Code**. It runs several Claude Code sessi
 
 <sub>Private session titles and paths are blurred in these screenshots.</sub>
 
-- **Cooking now**: one live card per worker, showing the tool it is running ("Bash: typecheck web"), its model and effort, and any subagents it spawned.
+- **Working on**: one live card per worker, showing the tool it is running ("Bash: typecheck web"), its model and effort, and any subagents it spawned.
 - **Voice**: speak to the selected worker. When a worker finishes its turn, Ella reads the reply aloud, and the orb reacts to your mic and her voice.
-- **Cooked**: your recent Claude Code sessions are **auto‑detected**, with no setup, and grouped by project. Click one to continue it as a worker. The session is forked, so the original is never touched.
+- **Done**: your recent Claude Code sessions are **auto‑detected**, with no setup, and grouped by project. Click one to continue it as a worker. The session is forked, so the original is never touched.
 - **Evolution**: the memory notes Claude Code has written recently.
 - **SESSION / WEEK meters**: your plan usage and reset times, taken from the CLI's own rate‑limit events.
 - **NEEDS YOU**: flags workers that hit a permission wall or an error.
@@ -30,7 +30,15 @@ A sci‑fi command center for **Claude Code**. It runs several Claude Code sessi
 
 ![Control Center MCP and plugins](docs/screenshots/control-mcp.webp)
 
-**Control Center → Docker.** Disk used by images and build cache, and each project's containers and volumes:
+**Which Claude?** Ella finds every Claude Code install and profile on the machine. Pick one and name your assistant:
+
+![Claude picker](docs/screenshots/setup.webp)
+
+**Control Center → Docker → Project.** Pick a project to see its disk use, its containers and volumes, and Start all / Stop all:
+
+![Docker project view](docs/screenshots/docker-project.webp)
+
+**Control Center → Docker → All.** Disk used by images and build cache, and every project's containers and volumes:
 
 ![Control Center Docker usage](docs/screenshots/control-docker.webp)
 
@@ -130,6 +138,30 @@ Restart `pnpm start` after you change `.env`.
 | Plan usage | From the CLI's `rate_limit_event` stream, shown after a worker's first reply |
 | VPN | A tunnel adapter such as WireGuard, Tailscale or OpenVPN with a live address |
 
+## More than one Claude? (two accounts or two installs)
+
+Ella **auto‑detects** every Claude Code setup on the machine:
+
+- **Binaries:** each `claude` CLI on your PATH, plus the native and npm installs. A file only counts if `--version` reports Claude Code. Desktop‑app helpers such as `claude-desktop` are never run.
+- **Profiles:** every config folder, meaning `~/.claude` plus any `~/.claude-*` folder that holds a Claude login or history. Wrapper scripts that set `CLAUDE_CONFIG_DIR` (for example a `claude2` script) are read, not run, and their folder is added too.
+
+On first start, if it finds more than one, Ella asks **which Claude** to use and **what to call the assistant** (Ella, Claudia, anything). Only binaries Ella detected can be picked. If yours is somewhere unusual, set `CLAUDE_BIN` in `.env` and restart. You can change this later with the **Claude** button in the header.
+
+The choice is saved **per port** (`data/instance-<port>.json`). To drive two Claudes side by side, run a second instance on another port:
+
+```bash
+pnpm start                 # first instance on 4317 (also builds the UI)
+PORT=4318 pnpm serve       # macOS / Linux: second instance on 4318
+```
+
+```bat
+set PORT=4318&& pnpm serve
+```
+
+The second command is for Windows CMD. In PowerShell, use `$env:PORT=4318; pnpm serve`.
+
+Open http://127.0.0.1:4318 and pick the other Claude there. Each instance keeps its own workers, its own Claude profile and its own name.
+
 ## Using it
 
 | Control | What it does |
@@ -138,12 +170,13 @@ Restart `pnpm start` after you change `.env`.
 | 📅 / ✅ (header) | Open **Meetings** and **To-do** in a modal. The to-do icon shows how many are still open |
 | Quick search (left) | Type a few words. The dropdown ranks the best matches across live workers and recent sessions; pick one to open it |
 | Left sidebar | Sessions are grouped by project, with the newest project first. Click a group name to collapse or expand it |
-| Card in *Cooking now* | Select that worker. The chat and the voice target follow it |
-| Item in *Cooked* | Continue that old session as a new forked worker |
-| 🎙 mic | Start or stop listening. Speech goes to the selected worker |
-| 🔊 speaker | Turn Ella's spoken replies on or off |
-| 🎧 headphones | Announce every worker that finishes, not only the one you're talking to |
-| ☼ | Voice language (English India/US/UK, Hindi) |
+| Card in *Working on* | Select that worker. The chat and the voice target follow it |
+| Item in *Done* | Continue that old session as a new forked worker |
+| **Mic** | Start or stop listening. Speech goes to the selected worker |
+| **Voice** | Turn the assistant's spoken replies on or off |
+| **Announce** | Announce every worker that finishes, not only the one you're talking to |
+| **Language** | Voice language (English India/US/UK, Hindi) |
+| **Claude** | Switch which Claude binary or profile this instance drives, and the assistant's name |
 | **Talk / Collect asks** | *Talk* sends each spoken sentence right away. *Collect asks* gathers them in the box until you press Send |
 | **Stop** | Kill the selected worker's current turn. You can message it again later and it resumes |
 
@@ -158,7 +191,7 @@ The sliders icon in the header switches the HUD to the **Control Center**. On th
 | **Sessions** | Every Claude Code session running right now (`claude agents --json`) | Its running sessions, plus all of its session files. Click **Open** to continue one as a worker |
 | **Config** | `~/.claude/CLAUDE.md`, rules, skills, agents, slash commands, permissions, hooks | That project's `CLAUDE.md`, `.claude/` settings, skills, rules, agents, hooks, permissions |
 | **MCP & Plugins** | User MCP servers, a **health check** (`claude mcp list`), and installed plugins with enable/disable | User, local and project servers. Project `.mcp.json` servers can be approved or rejected |
-| **Docker** | Disk used by images, build cache, and every compose project, grouped by Claude project | Only this project's containers and volumes, with start/stop |
+| **Docker** | Two views. **All** shows disk used by images and build cache, plus every compose project grouped by Claude project. **Project** lets you pick a project from a dropdown and see its disk use, running count, containers and volumes, with Start all / Stop all | Opens on **Project**, with this project already picked |
 | **Tasks** | Tasks started from Ella, plus Playwright and browser-automation processes | Its `package.json` scripts and Playwright (run tests, UI mode, report) with one‑click start/stop and live logs. Also lists other processes using the folder |
 | **Commands** | Read‑only `claude` commands: `--version`, `doctor`, `auth status`, `mcp list`, `plugin list`, `agents` | The same commands, run inside the project folder |
 
@@ -181,7 +214,7 @@ All values are optional.
 | `WORKSPACE_ROOTS` | home folder | Folders workers may run in |
 | `DEFAULT_CWD` | first root | Folder pre‑filled in the New worker form |
 | `WORKER_PERMISSION_MODE` | `acceptEdits` | `default` · `acceptEdits` · `plan` · `bypassPermissions` |
-| `MAX_WORKERS` | `4` | Workers cooking at the same time (1–8) |
+| `MAX_WORKERS` | `4` | Workers running at the same time (1–8) |
 | `CLAUDE_BIN` | auto | Full path to `claude` if it isn't detected |
 | `CLAUDE_CONFIG_DIR` | `~/.claude` | Only if you moved your Claude Code config |
 
@@ -215,12 +248,13 @@ Each worker is `claude -p` in stream‑JSON mode. The server parses the event st
 | Symptom | Fix |
 |---|---|
 | Worker says *"Failed to authenticate"* | Run `claude`, type `/login`, then send the message again |
+| Wrong Claude account or install | Click **Claude** in the header and pick the right binary and profile. The choice is saved for that port only |
 | *"Could not start claude"* | Set `CLAUDE_BIN` in `.env` to the full path of `claude` (`where claude` on Windows, `which claude` on macOS/Linux) |
 | *"cwd is outside WORKSPACE_ROOTS"* | Add that folder's parent to `WORKSPACE_ROOTS` |
 | SESSION / WEEK show "—" | They fill in after a worker's first reply. API‑key users don't get plan meters |
 | Mic does nothing | Use Chrome or Edge, and allow the microphone for 127.0.0.1 |
 | *"Port 4317 is busy"* | Set another `PORT` in `.env` |
-| Cooked list is empty | You have no Claude Code sessions yet, or set `CLAUDE_CONFIG_DIR` if your config lives elsewhere |
+| Done list is empty | You have no Claude Code sessions yet, or set `CLAUDE_CONFIG_DIR` if your config lives elsewhere |
 
 ## Development
 

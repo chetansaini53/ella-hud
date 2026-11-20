@@ -1,7 +1,7 @@
-import { Badge, Button, Switch, Tooltip } from "@mantine/core";
+import { Badge, Button, SegmentedControl, Select, Switch, Tooltip } from "@mantine/core";
 import { IconHeartbeat, IconPlayerPlay, IconPlayerStop } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
-import type { ClaudeConfigView, CommandResult, DockerReport, PluginInfo, ProjectItem } from "../../../shared/types.ts";
+import type { ClaudeConfigView, CommandResult, DockerProjectUsage, DockerReport, PluginInfo, ProjectItem } from "../../../shared/types.ts";
 import { api } from "../../api.ts";
 import { fmtBytes, projectQuery, useFetch } from "../../useFetch.ts";
 import { Loadable, Section, useConfirm } from "./shared.tsx";
@@ -112,10 +112,62 @@ export function McpPanel({ project, onError }: { project: ProjectItem | null; on
   );
 }
 
+function GroupSection({ g, pending, busy, onAct }: { g: DockerProjectUsage; pending: boolean; busy: string | null; onAct: (id: string, name: string, action: "start" | "stop") => void }) {
+  return (
+    <Section title={g.label} actions={<b>{fmtBytes(g.sizeBytes)}</b>}>
+      {g.projectPath && <div className="mono dim ctl-sub">{g.projectPath}</div>}
+      {g.containers.length > 0 && (
+        <table className="ctl-table">
+          <thead>
+            <tr><th>Container</th><th>Image</th><th>State</th><th>Size</th><th /></tr>
+          </thead>
+          <tbody>
+            {g.containers.map((c) => (
+              <tr key={c.id}>
+                <td><b>{c.name}</b></td>
+                <td className="mono dim">{c.image}</td>
+                <td><Badge size="xs" variant="light" color={c.state === "running" ? "teal" : "gray"}>{c.status}</Badge></td>
+                <td>{fmtBytes(c.sizeBytes)}</td>
+                <td>
+                  {c.state === "running" ? (
+                    <Button size="compact-xs" variant="subtle" color="red" loading={busy === c.id} leftSection={<IconPlayerStop size={12} />} onClick={() => onAct(c.id, c.name, "stop")}>Stop</Button>
+                  ) : (
+                    <Button size="compact-xs" variant="subtle" loading={busy === c.id} leftSection={<IconPlayerPlay size={12} />} onClick={() => onAct(c.id, c.name, "start")}>Start</Button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {g.volumes.length > 0 && (
+        <table className="ctl-table">
+          <thead>
+            <tr><th>Volume</th><th>Size</th></tr>
+          </thead>
+          <tbody>
+            {g.volumes.map((v) => (
+              <tr key={v.name}>
+                <td className="mono">{v.name}</td>
+                <td>{pending ? "…" : fmtBytes(v.sizeBytes)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Section>
+  );
+}
+
+const groupKey = (g: DockerProjectUsage) => g.projectPath ?? `compose:${g.label}`;
+
+/** Two views: All (whole Docker footprint) and Project (pick one project; its containers, volumes and bulk controls). */
 export function DockerPanel({ project, onError }: { project: ProjectItem | null; onError: (msg: string) => void }) {
   const report = useFetch<DockerReport>("/api/docker");
   const [confirmModal, ask] = useConfirm();
   const [busy, setBusy] = useState<string | null>(null);
+  const [view, setView] = useState<"all" | "project">(project ? "project" : "all");
+  const [pick, setPick] = useState<string | null>(project?.path ?? null);
 
   // Volume sizes arrive from a slow background scan; poll until they land.
   useEffect(() => {
@@ -137,67 +189,80 @@ export function DockerPanel({ project, onError }: { project: ProjectItem | null;
     }
   };
 
+  const bulk = async (g: DockerProjectUsage, action: "start" | "stop") => {
+    const targets = g.containers.filter((c) => (action === "stop" ? c.state === "running" : c.state !== "running"));
+    if (!targets.length) return;
+    const verb = action === "stop" ? "Stop" : "Start";
+    if (!(await ask(`${verb} ${targets.length} container(s) of ${g.label}?\n\n${targets.map((c) => c.name).join("\n")}`, `${verb} all`))) return;
+    setBusy("bulk");
+    try {
+      for (const c of targets) await api("POST", "/api/docker/action", { id: c.id, action });
+    } catch (err) {
+      onError((err as Error).message);
+    } finally {
+      setBusy(null);
+      report.reload();
+    }
+  };
+
   return (
     <Loadable state={report} empty="">
       {(r) => {
         if (!r.available) return <div className="ctl-state error">Docker is not reachable: {r.error}</div>;
-        const groups = project ? r.groups.filter((g) => g.projectPath === project.path) : r.groups;
+        const selected = r.groups.find((g) => groupKey(g) === pick) ?? null;
+        const running = selected?.containers.filter((c) => c.state === "running").length ?? 0;
+        const onAct = (id: string, n: string, a: "start" | "stop") => void act(id, n, a);
         return (
           <>
             {confirmModal}
-            {!project && (
-              <div className="ctl-stats">
-                <div><span className="dim">Images</span><b>{fmtBytes(r.imagesBytes)}</b></div>
-                <div><span className="dim">Build cache</span><b>{fmtBytes(r.buildCacheBytes)}</b></div>
-                <div><span className="dim">Groups</span><b>{r.groups.length}</b></div>
-              </div>
-            )}
+            <div className="ctl-subtabs">
+              <SegmentedControl size="xs" value={view} onChange={(v) => setView(v as "all" | "project")} data={[{ value: "all", label: `All · ${r.groups.length}` }, { value: "project", label: "Project" }]} />
+              {view === "project" && (
+                <Select
+                  className="hud-input"
+                  size="xs"
+                  w={320}
+                  searchable
+                  placeholder="Pick a project"
+                  aria-label="Docker project"
+                  value={pick}
+                  onChange={setPick}
+                  data={r.groups.map((g) => ({ value: groupKey(g), label: `${g.label} · ${fmtBytes(g.sizeBytes)}` }))}
+                  nothingFoundMessage="No such project"
+                />
+              )}
+              <Button size="compact-xs" variant="subtle" ml="auto" onClick={report.reload}>Refresh</Button>
+            </div>
             {r.volumesPending && <p className="ctl-note">Measuring volume sizes in the background (docker system df -v can take ~30 s)…</p>}
-            {groups.length === 0 && <div className="ctl-state">No containers or volumes belong to this project.</div>}
-            {groups.map((g) => (
-              <Section key={g.label + (g.projectPath ?? "")} title={g.label} actions={<b>{fmtBytes(g.sizeBytes)}</b>}>
-                {g.projectPath && <div className="mono dim ctl-sub">{g.projectPath}</div>}
-                {g.containers.length > 0 && (
-                  <table className="ctl-table">
-                    <thead>
-                      <tr><th>Container</th><th>Image</th><th>State</th><th>Size</th><th /></tr>
-                    </thead>
-                    <tbody>
-                      {g.containers.map((c) => (
-                        <tr key={c.id}>
-                          <td><b>{c.name}</b></td>
-                          <td className="mono dim">{c.image}</td>
-                          <td><Badge size="xs" variant="light" color={c.state === "running" ? "teal" : "gray"}>{c.status}</Badge></td>
-                          <td>{fmtBytes(c.sizeBytes)}</td>
-                          <td>
-                            {c.state === "running" ? (
-                              <Button size="compact-xs" variant="subtle" color="red" loading={busy === c.id} leftSection={<IconPlayerStop size={12} />} onClick={() => void act(c.id, c.name, "stop")}>Stop</Button>
-                            ) : (
-                              <Button size="compact-xs" variant="subtle" loading={busy === c.id} leftSection={<IconPlayerPlay size={12} />} onClick={() => void act(c.id, c.name, "start")}>Start</Button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-                {g.volumes.length > 0 && (
-                  <table className="ctl-table">
-                    <thead>
-                      <tr><th>Volume</th><th>Size</th></tr>
-                    </thead>
-                    <tbody>
-                      {g.volumes.map((v) => (
-                        <tr key={v.name}>
-                          <td className="mono">{v.name}</td>
-                          <td>{r.volumesPending ? "…" : fmtBytes(v.sizeBytes)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </Section>
-            ))}
+
+            {view === "all" && (
+              <>
+                <div className="ctl-stats">
+                  <div><span className="dim">Images</span><b>{fmtBytes(r.imagesBytes)}</b></div>
+                  <div><span className="dim">Build cache</span><b>{fmtBytes(r.buildCacheBytes)}</b></div>
+                  <div><span className="dim">Projects using Docker</span><b>{r.groups.length}</b></div>
+                  <div><span className="dim">Containers</span><b>{r.groups.reduce((n, g) => n + g.containers.length, 0)}</b></div>
+                  <div><span className="dim">Volumes</span><b>{r.groups.reduce((n, g) => n + g.volumes.length, 0)}</b></div>
+                </div>
+                {r.groups.map((g) => <GroupSection key={groupKey(g)} g={g} pending={r.volumesPending} busy={busy} onAct={onAct} />)}
+              </>
+            )}
+
+            {view === "project" && !selected && <div className="ctl-state">{pick ? "This project has no containers or volumes." : "Pick a project above to see its containers and volumes."}</div>}
+            {view === "project" && selected && (
+              <>
+                <div className="ctl-stats">
+                  <div><span className="dim">Disk used</span><b>{fmtBytes(selected.sizeBytes)}</b></div>
+                  <div><span className="dim">Running</span><b>{running} / {selected.containers.length}</b></div>
+                  <div><span className="dim">Volumes</span><b>{selected.volumes.length}</b></div>
+                  <div className="ctl-stat-actions">
+                    <Button size="compact-sm" variant="light" leftSection={<IconPlayerPlay size={13} />} loading={busy === "bulk"} disabled={running === selected.containers.length} onClick={() => void bulk(selected, "start")}>Start all</Button>
+                    <Button size="compact-sm" variant="light" color="red" leftSection={<IconPlayerStop size={13} />} loading={busy === "bulk"} disabled={running === 0} onClick={() => void bulk(selected, "stop")}>Stop all</Button>
+                  </div>
+                </div>
+                <GroupSection g={selected} pending={r.volumesPending} busy={busy} onAct={onAct} />
+              </>
+            )}
           </>
         );
       }}

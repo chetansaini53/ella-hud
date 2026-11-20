@@ -7,6 +7,10 @@ import type { Usage, UsageWindow } from "../shared/types.ts";
 export class UsageTracker {
   #usage: Usage = { session: null, week: null };
 
+  reset(): void {
+    this.#usage = { session: null, week: null };
+  }
+
   get(): Usage {
     const now = Date.now();
     const live = (w: UsageWindow | null) => (w?.resetsAt && w.resetsAt < now ? null : w);
