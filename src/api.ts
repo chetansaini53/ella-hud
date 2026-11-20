@@ -1,14 +1,15 @@
 import { useEffect, useReducer } from "react";
 import type { AppConfig, InstanceInfo, ServerEvent, TaskView, Usage, WorkerView } from "../shared/types.ts";
 
-export async function api<T>(method: string, url: string, body?: unknown): Promise<T> {
+/** JSON call to the HUD server; `timeoutMs` defaults to 15 s (long Docker cleanups pass more). */
+export async function api<T>(method: string, url: string, body?: unknown, timeoutMs = 15_000): Promise<T> {
   let res: Response;
   try {
     res = await fetch(url, {
       method,
       headers: body === undefined ? undefined : { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
     throw new Error("The HUD server is not reachable — is it running?");

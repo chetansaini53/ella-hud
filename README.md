@@ -187,15 +187,16 @@ The sliders icon in the header switches the HUD to the **Control Center**. On th
 | **Sessions** | Every Claude Code session running right now (`claude agents --json`) | Its running sessions, plus all of its session files. Click **Open** to continue one as a worker |
 | **Config** | `~/.claude/CLAUDE.md`, rules, skills, agents, slash commands, permissions, hooks | That project's `CLAUDE.md`, `.claude/` settings, skills, rules, agents, hooks, permissions |
 | **MCP & Plugins** | User MCP servers, a **health check** (`claude mcp list`), and installed plugins with enable/disable | User, local and project servers. Project `.mcp.json` servers can be approved or rejected |
-| **Docker** | Two views. **All** shows disk used by images and build cache, plus every compose project grouped by Claude project. **Project** lets you pick a project from a dropdown and see its disk use, running count, containers and volumes, with Start all / Stop all | Opens on **Project**, with this project already picked |
+| **Docker** | Two views. **All** shows disk used by images and build cache, plus every compose project grouped by Claude project. It has a search box for containers, images, volumes and projects, Start / Stop / Remove on every container, Remove on every volume, and a **Free up disk space** section: dangling images, build cache, stopped containers, unused anonymous volumes and all unused images, each with the space it reclaims. **Project** lets you pick one project and see its disk use, running count, containers and volumes, with Start all / Stop all and a cleanup for that project's stopped containers and volumes | Opens on **Project**, with this project already picked |
 | **Tasks** | Tasks started from Ella, plus Playwright and browser-automation processes | Its `package.json` scripts and Playwright (run tests, UI mode, report) with one‑click start/stop and live logs. Also lists other processes using the folder |
 | **Commands** | Read‑only `claude` commands: `--version`, `doctor`, `auth status`, `mcp list`, `plugin list`, `agents` | The same commands, run inside the project folder |
 
-**Ella does not change your Claude Code setup on its own.** Everything is read‑only until you click one of these four actions, and each one asks you to confirm first:
+**Ella does not change your Claude Code setup on its own.** Everything is read‑only until you click one of these actions, and each one asks you to confirm first:
 
 - Approving or rejecting a project `.mcp.json` server writes `.claude/settings.local.json` (a backup is kept as `settings.local.json.ella-bak`). This is the same file Claude Code's own approval prompt writes.
 - Enabling or disabling a plugin runs the official `claude plugin enable|disable` command.
-- Starting or stopping a Docker container.
+- Starting, stopping or removing a Docker container. A running container can't be removed; stop it first.
+- Removing a Docker volume (its data is deleted), or running one of the **Free up disk space** cleanups. These cannot be undone, and the confirm dialog says so.
 - Killing a listed process.
 
 Secrets are masked in every view: MCP `env` and `headers`, token‑looking arguments, and keys whose names contain `key`, `token` or `secret`.

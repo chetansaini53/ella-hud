@@ -1,7 +1,7 @@
 import type { IncomingMessage } from "node:http";
 import type { CommandResult, ProjectItem } from "../shared/types.ts";
 import { globalConfig, listPlugins, projectConfig, setPlugin, setProjectMcp, viewFile } from "./config.ts";
-import { containerAction, dockerReport } from "./docker.ts";
+import { containerAction, dockerReport, prune, removeVolume } from "./docker.ts";
 import { run } from "./exec.ts";
 import { HttpError } from "./http-error.ts";
 import { claudeBin } from "./instance.ts";
@@ -58,6 +58,11 @@ export function controlRoutes(tasks: TaskManager, body: Body): Route[] {
       await containerAction(b.id, b.action);
       return { ok: true };
     }],
+    ["POST", /^\/api\/docker\/volume-remove$/, async (req) => {
+      await removeVolume((await body(req)).name);
+      return { ok: true };
+    }],
+    ["POST", /^\/api\/docker\/prune$/, async (req) => ({ output: await prune((await body(req)).target) })],
 
     ["GET", /^\/api\/tasks\/presets$/, async (req) => taskPresets(await requireProject(query(req, "project")))],
     ["POST", /^\/api\/tasks$/, async (req) => {
