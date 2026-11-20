@@ -193,7 +193,11 @@ export interface DockerReport {
   imagesBytes: number;
   buildCacheBytes: number;
   volumesPending: boolean;
+  reclaimable: { images: number; buildCache: number; volumes: number; containers: number };
+  danglingImages: number;
 }
+
+export type DockerPrune = "dangling-images" | "unused-images" | "build-cache" | "anonymous-volumes" | "stopped-containers";
 
 export interface ClaudeSessionProc {
   pid: number;

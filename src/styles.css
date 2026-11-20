@@ -1046,3 +1046,7 @@ body {
   align-items: center;
   gap: 8px !important;
 }
+
+.ctl-note.ok {
+  color: var(--hud-cyan-soft);
+}
